@@ -331,7 +331,64 @@ def approve_and_commit(message: str) -> dict:
                 commit_hash = parts[0].split("[")[-1].strip().split()[-1]
             break
 
+    _persist_review(commit_hash, message, snap)
     return {"ok": True, "commit": commit_hash, "message": message}
+
+
+def _history_dir() -> Path:
+    d = Path.home() / ".pr-review" / "history"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def _persist_review(commit_hash: str, message: str, snap: dict):
+    try:
+        with state.lock:
+            diff = dict(state.diff_data)
+        record = {
+            "commit": commit_hash,
+            "message": message,
+            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "base_ref": diff.get("base_ref", "main"),
+            "head_ref": diff.get("head_ref", "HEAD"),
+            "files": [f["filename"] for f in diff.get("files", [])],
+            "comments": snap["comments"],
+            "raw_diff": diff,
+        }
+        path = _history_dir() / f"{commit_hash}.json"
+        path.write_text(json.dumps(record, indent=2))
+    except Exception as e:
+        print(f"WARNING: failed to persist review history: {e}", flush=True)
+
+
+@mcp.tool()
+def list_reviews() -> dict:
+    """Return summaries of past review sessions, newest first."""
+    try:
+        records = []
+        for path in sorted(_history_dir().glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True):
+            try:
+                data = json.loads(path.read_text())
+                records.append({
+                    "commit": data.get("commit"),
+                    "message": data.get("message"),
+                    "timestamp": data.get("timestamp"),
+                    "files_changed": len(data.get("files", [])),
+                })
+            except Exception:
+                pass
+        return {"reviews": records}
+    except FileNotFoundError:
+        return {"reviews": []}
+
+
+@mcp.tool()
+def get_review(commit_hash: str) -> dict:
+    """Return the full review record for a specific commit hash."""
+    path = _history_dir() / f"{commit_hash}.json"
+    if not path.exists():
+        return {"error": f"No review found for commit: {commit_hash}"}
+    return json.loads(path.read_text())
 
 
 # ---------------------------------------------------------------------------
