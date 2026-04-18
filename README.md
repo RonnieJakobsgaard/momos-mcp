@@ -25,3 +25,4 @@ Follow the printed instructions to register the MCP server with Claude Code, the
 CLAUDE.md workflow snippet to any project where you want the review loop active.
 
 See [`pr-review-mcp/README.md`](pr-review-mcp/README.md) for full setup and usage details.
+
