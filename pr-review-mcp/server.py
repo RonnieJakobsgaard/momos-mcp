@@ -172,11 +172,26 @@ def run_http_server(port: int):
 mcp = FastMCP("pr-review")
 
 
-@mcp.tool()
-def create_review(base_branch: str = "main") -> dict:
-    """Run git diff, parse it, serve the review UI, and open the browser."""
+def _validate_ref(ref: str) -> str | None:
+    """Return None if ref is valid, or an error string if not."""
     result = subprocess.run(
-        ["git", "diff", base_branch],
+        ["git", "rev-parse", "--verify", ref],
+        capture_output=True, text=True
+    )
+    if result.returncode != 0:
+        return f"invalid ref: {ref}"
+    return None
+
+
+@mcp.tool()
+def create_review(base_ref: str = "main", head_ref: str = "HEAD") -> dict:
+    """Run git diff, parse it, serve the review UI, and open the browser."""
+    for ref in (base_ref, head_ref):
+        if err := _validate_ref(ref):
+            return {"error": err}
+
+    result = subprocess.run(
+        ["git", "diff", base_ref, head_ref],
         capture_output=True, text=True
     )
     if result.returncode != 0:
@@ -184,9 +199,11 @@ def create_review(base_branch: str = "main") -> dict:
 
     raw = result.stdout
     if not raw.strip():
-        return {"error": "No changes found against branch: " + base_branch}
+        return {"error": f"No changes found between {base_ref} and {head_ref}"}
 
     diff_data = parse_diff(raw)
+    diff_data["base_ref"] = base_ref
+    diff_data["head_ref"] = head_ref
     state.reset()
     with state.lock:
         state.diff_data = diff_data

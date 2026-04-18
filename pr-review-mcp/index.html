@@ -27,6 +27,7 @@
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
     </svg>
     <span class="font-semibold text-lg">PR Review</span>
+    <span id="ref-range" class="text-xs text-gray-500 font-mono"></span>
     <span id="status-badge" class="px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Pending</span>
   </div>
   <div class="flex items-center gap-3">
@@ -106,6 +107,11 @@ async function loadDiff() {
 
   const files = diffData.files || [];
   if (!files.length) { showEmpty(); return; }
+
+  if (diffData.base_ref || diffData.head_ref) {
+    document.getElementById("ref-range").textContent =
+      `${diffData.base_ref ?? "main"} → ${diffData.head_ref ?? "HEAD"}`;
+  }
 
   renderFileTree(files);
   renderDiff(files);
