@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PR Review</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/diff2html/bundles/css/diff2html.min.css">
+<script src="https://cdn.jsdelivr.net/npm/diff2html/bundles/js/diff2html-ui.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  .d2h-file-wrapper { margin-bottom: 1.5rem; }
+  .inline-comment-box { background: #fffbdd; border: 1px solid #e6c84a; border-radius: 4px; padding: 8px; margin: 4px 0; }
+  .resolved-badge { display: inline-flex; align-items: center; gap: 4px; background: #d1fae5; color: #065f46; border-radius: 9999px; padding: 2px 8px; font-size: 0.75rem; }
+  .comment-thread { background: #f8fafc; border-left: 3px solid #6366f1; padding: 8px 12px; margin: 2px 0; font-size: 0.85rem; }
+  .d2h-code-line, .d2h-code-line-ctn { cursor: pointer; }
+  .d2h-code-line:hover, .d2h-code-line-ctn:hover { background: rgba(99,102,241,0.08) !important; }
+  #file-tree a:hover { background: #e0e7ff; }
+  #file-tree a.active { background: #e0e7ff; font-weight: 600; }
+</style>
+</head>
+<body class="bg-gray-50 text-gray-900 min-h-screen">
+
+<!-- Top bar -->
+<header class="bg-white border-b border-gray-200 sticky top-0 z-50 px-6 py-3 flex items-center justify-between shadow-sm">
+  <div class="flex items-center gap-3">
+    <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+    </svg>
+    <span class="font-semibold text-lg">PR Review</span>
+    <span id="status-badge" class="px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Pending</span>
+  </div>
+  <div class="flex items-center gap-3">
+    <span id="comment-count" class="text-sm text-gray-500"></span>
+    <button id="btn-changes" onclick="submitStatus('changes_requested')"
+      class="px-4 py-1.5 rounded-md border border-red-300 text-red-700 hover:bg-red-50 text-sm font-medium transition">
+      Request Changes
+    </button>
+    <button id="btn-approve" onclick="submitStatus('approved')"
+      class="px-4 py-1.5 rounded-md bg-green-600 text-white hover:bg-green-700 text-sm font-medium transition">
+      Approve
+    </button>
+  </div>
+</header>
+
+<div class="flex h-[calc(100vh-57px)]">
+
+  <!-- File tree -->
+  <aside id="file-tree" class="w-64 shrink-0 bg-white border-r border-gray-200 overflow-y-auto p-3">
+    <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 px-2">Files Changed</p>
+    <div id="file-list" class="space-y-0.5"></div>
+  </aside>
+
+  <!-- Diff area -->
+  <main class="flex-1 overflow-y-auto p-6" id="diff-area">
+    <div id="diff-container"></div>
+    <div id="empty-state" class="hidden text-center text-gray-400 mt-24">
+      <p class="text-lg">No diff loaded yet.</p>
+      <p class="text-sm mt-1">Call <code>create_review()</code> from Claude to start a review.</p>
+    </div>
+  </main>
+
+</div>
+
+<!-- Inline comment template (hidden) -->
+<template id="comment-form-tpl">
+  <div class="comment-form-row">
+    <div class="inline-comment-box mt-1 mx-4">
+      <textarea class="w-full text-sm border border-gray-300 rounded p-2 resize-y min-h-[60px] focus:outline-none focus:ring-2 focus:ring-indigo-400" placeholder="Leave a comment…"></textarea>
+      <div class="flex justify-end gap-2 mt-1">
+        <button class="btn-cancel text-xs text-gray-500 hover:text-gray-700">Cancel</button>
+        <button class="btn-submit px-3 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700">Submit</button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+// ---------------------------------------------------------------------------
+// State
+// ---------------------------------------------------------------------------
+let diffData = null;
+let comments = [];
+let reviewStatus = "pending";
+let activeFormRow = null;
+
+// ---------------------------------------------------------------------------
+// Boot
+// ---------------------------------------------------------------------------
+async function init() {
+  await loadDiff();
+  await refreshComments();
+  setInterval(refreshComments, 3000);
+}
+
+// ---------------------------------------------------------------------------
+// Load diff
+// ---------------------------------------------------------------------------
+async function loadDiff() {
+  try {
+    const res = await fetch("/diff");
+    diffData = await res.json();
+  } catch (e) {
+    showEmpty();
+    return;
+  }
+
+  const files = diffData.files || [];
+  if (!files.length) { showEmpty(); return; }
+
+  renderFileTree(files);
+  renderDiff(files);
+  attachLineClickHandlers();
+}
+
+function showEmpty() {
+  document.getElementById("empty-state").classList.remove("hidden");
+}
+
+// ---------------------------------------------------------------------------
+// File tree
+// ---------------------------------------------------------------------------
+function renderFileTree(files) {
+  const list = document.getElementById("file-list");
+  list.innerHTML = "";
+  files.forEach((f, i) => {
+    const a = document.createElement("a");
+    a.href = `#file-${i}`;
+    a.className = "block text-xs px-2 py-1 rounded cursor-pointer text-indigo-700 truncate";
+    a.textContent = f.filename;
+    a.dataset.fileIdx = i;
+    a.onclick = () => {
+      document.querySelectorAll("#file-list a").forEach(x => x.classList.remove("active"));
+      a.classList.add("active");
+    };
+    list.appendChild(a);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Diff rendering
+// ---------------------------------------------------------------------------
+function buildUnifiedDiff(files) {
+  return files.map(f => {
+    const hunks = f.hunks.map(h => {
+      const lines = h.lines.map(l => {
+        const prefix = l.type === "add" ? "+" : l.type === "remove" ? "-" : " ";
+        return prefix + l.content;
+      }).join("\n");
+      return `${h.header}\n${lines}`;
+    }).join("\n");
+    return `diff --git a/${f.filename} b/${f.filename}\n--- a/${f.filename}\n+++ b/${f.filename}\n${hunks}`;
+  }).join("\n");
+}
+
+function renderDiff(files) {
+  const container = document.getElementById("diff-container");
+  container.innerHTML = "";
+
+  files.forEach((f, fileIdx) => {
+    const wrapper = document.createElement("div");
+    wrapper.id = `file-${fileIdx}`;
+    wrapper.className = "mb-6";
+
+    const singleFileDiff = buildUnifiedDiff([f]);
+    const targetEl = document.createElement("div");
+    wrapper.appendChild(targetEl);
+    container.appendChild(wrapper);
+
+    const ui = new Diff2HtmlUI(targetEl, singleFileDiff, {
+      drawFileList: false,
+      matching: "lines",
+      outputFormat: "side-by-side",
+      highlight: true,
+      renderNothingWhenEmpty: false,
+    });
+    ui.draw();
+    ui.highlightCode();
+
+    // Tag each line with data attributes for comment anchoring
+    targetEl.querySelectorAll(".d2h-code-line, .d2h-code-line-ctn").forEach(cell => {
+      const row = cell.closest("tr");
+      if (!row) return;
+      const lineNoCell = row.querySelector(".d2h-code-linenumber, .line-num1, .line-num2");
+      const lineNo = lineNoCell ? parseInt(lineNoCell.textContent.trim()) : 0;
+      cell.dataset.file = f.filename;
+      cell.dataset.line = lineNo;
+      cell.dataset.fileIdx = fileIdx;
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Inline comment form
+// ---------------------------------------------------------------------------
+function attachLineClickHandlers() {
+  document.getElementById("diff-container").addEventListener("click", e => {
+    const cell = e.target.closest("[data-file]");
+    if (!cell) return;
+    const file = cell.dataset.file;
+    const line = parseInt(cell.dataset.line) || 0;
+    const row = cell.closest("tr");
+    if (!row) return;
+    openCommentForm(row, file, line);
+  });
+}
+
+function openCommentForm(row, file, line) {
+  // Remove any existing open form
+  if (activeFormRow) {
+    activeFormRow.remove();
+    activeFormRow = null;
+  }
+
+  const tpl = document.getElementById("comment-form-tpl");
+  const formRow = tpl.content.cloneNode(true).querySelector(".comment-form-row");
+
+  const colspan = row.cells.length || 4;
+  const tr = document.createElement("tr");
+  const td = document.createElement("td");
+  td.colSpan = colspan;
+  td.appendChild(formRow);
+  tr.appendChild(td);
+
+  row.insertAdjacentElement("afterend", tr);
+  activeFormRow = tr;
+
+  const textarea = tr.querySelector("textarea");
+  textarea.focus();
+
+  tr.querySelector(".btn-cancel").onclick = () => { tr.remove(); activeFormRow = null; };
+  tr.querySelector(".btn-submit").onclick = async () => {
+    const text = textarea.value.trim();
+    if (!text) return;
+    await postComment(file, line, text);
+    tr.remove();
+    activeFormRow = null;
+    await refreshComments();
+  };
+}
+
+async function postComment(file, line, comment) {
+  await fetch("/comments", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ file, line, comment }),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Status buttons
+// ---------------------------------------------------------------------------
+async function submitStatus(status) {
+  const btnApprove = document.getElementById("btn-approve");
+  const btnChanges = document.getElementById("btn-changes");
+  btnApprove.disabled = true;
+  btnChanges.disabled = true;
+  btnApprove.classList.add("opacity-50", "cursor-not-allowed");
+  btnChanges.classList.add("opacity-50", "cursor-not-allowed");
+
+  await fetch("/status", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status }),
+  });
+  updateStatusBadge(status);
+}
+
+// ---------------------------------------------------------------------------
+// Auto-refresh comments
+// ---------------------------------------------------------------------------
+async function refreshComments() {
+  try {
+    const res = await fetch("/comments");
+    const data = await res.json();
+    comments = data.comments || [];
+    reviewStatus = data.status || "pending";
+    updateStatusBadge(reviewStatus);
+    renderCommentThreads();
+    updateCommentCount();
+  } catch (e) { /* server not ready yet */ }
+}
+
+function updateStatusBadge(status) {
+  const badge = document.getElementById("status-badge");
+  const map = {
+    pending: ["bg-yellow-100 text-yellow-800", "Pending"],
+    approved: ["bg-green-100 text-green-800", "Approved"],
+    changes_requested: ["bg-red-100 text-red-800", "Changes Requested"],
+  };
+  const [cls, label] = map[status] || map.pending;
+  badge.className = `px-2 py-0.5 rounded-full text-xs font-medium ${cls}`;
+  badge.textContent = label;
+
+  if (status !== "pending") {
+    document.getElementById("btn-approve").disabled = true;
+    document.getElementById("btn-changes").disabled = true;
+    document.getElementById("btn-approve").classList.add("opacity-50", "cursor-not-allowed");
+    document.getElementById("btn-changes").classList.add("opacity-50", "cursor-not-allowed");
+  }
+}
+
+function updateCommentCount() {
+  const el = document.getElementById("comment-count");
+  const total = comments.length;
+  const resolved = comments.filter(c => c.resolved).length;
+  el.textContent = total ? `${resolved}/${total} resolved` : "";
+}
+
+function renderCommentThreads() {
+  // Remove old threads
+  document.querySelectorAll(".comment-thread-row").forEach(r => r.remove());
+
+  comments.forEach(c => {
+    // Find the best matching row in the diff
+    const cells = document.querySelectorAll(`[data-file="${CSS.escape(c.file)}"][data-line="${c.line}"]`);
+    if (!cells.length) return;
+    const row = cells[0].closest("tr");
+    if (!row) return;
+
+    // Don't duplicate
+    const existingId = `comment-${c.id}`;
+    if (document.getElementById(existingId)) {
+      // Just update resolved state
+      const badge = document.querySelector(`#${existingId} .resolved-badge`);
+      if (badge) badge.style.display = c.resolved ? "inline-flex" : "none";
+      return;
+    }
+
+    const colspan = row.cells.length || 4;
+    const tr = document.createElement("tr");
+    tr.id = existingId;
+    tr.className = "comment-thread-row";
+    const td = document.createElement("td");
+    td.colSpan = colspan;
+
+    td.innerHTML = `
+      <div class="comment-thread flex items-start justify-between gap-2">
+        <span class="flex-1">${escapeHtml(c.comment)}</span>
+        ${c.resolved
+          ? `<span class="resolved-badge">✓ Resolved</span>`
+          : `<span class="resolved-badge" style="display:none">✓ Resolved</span>`
+        }
+      </div>`;
+    tr.appendChild(td);
+    row.insertAdjacentElement("afterend", tr);
+  });
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+// ---------------------------------------------------------------------------
+// Start
+// ---------------------------------------------------------------------------
+init();
+</script>
+</body>
+</html>
