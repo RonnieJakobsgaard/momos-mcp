@@ -58,6 +58,34 @@ class SharedState:
                     return c
         return None
 
+    def update_comment(self, comment_id: str, text: str) -> dict | None | str:
+        """Returns updated comment, None if not found, or an error string."""
+        with self.lock:
+            if self.status != "pending":
+                return "cannot edit comments after review is submitted"
+            for c in self.comments:
+                if c["id"] == comment_id:
+                    if c["resolved"]:
+                        return "cannot edit a resolved comment"
+                    c["comment"] = text
+                    self._write_comments()
+                    return dict(c)
+        return None
+
+    def delete_comment(self, comment_id: str) -> dict | None | str:
+        """Returns deleted comment, None if not found, or an error string."""
+        with self.lock:
+            if self.status != "pending":
+                return "cannot delete comments after review is submitted"
+            for i, c in enumerate(self.comments):
+                if c["id"] == comment_id:
+                    if c["resolved"]:
+                        return "cannot delete a resolved comment"
+                    removed = self.comments.pop(i)
+                    self._write_comments()
+                    return dict(removed)
+        return None
+
     def set_status(self, status: str):
         with self.lock:
             self.status = status
@@ -102,7 +130,7 @@ class ReviewHandler(http.server.BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         self.send_response(204)
         self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
 
@@ -150,6 +178,37 @@ class ReviewHandler(http.server.BaseHTTPRequestHandler):
             else:
                 self._send_json(result)
 
+        else:
+            self._send_json({"error": "not found"}, 404)
+
+    def do_PUT(self):
+        body = self._read_body()
+        if self.path.startswith("/comments/"):
+            comment_id = self.path[len("/comments/"):]
+            text = body.get("comment", "").strip()
+            if not text:
+                self._send_json({"error": "comment text required"}, 400)
+                return
+            result = state.update_comment(comment_id, text)
+            if result is None:
+                self._send_json({"error": f"comment '{comment_id}' not found"}, 404)
+            elif isinstance(result, str):
+                self._send_json({"error": result}, 400)
+            else:
+                self._send_json(result)
+        else:
+            self._send_json({"error": "not found"}, 404)
+
+    def do_DELETE(self):
+        if self.path.startswith("/comments/"):
+            comment_id = self.path[len("/comments/"):]
+            result = state.delete_comment(comment_id)
+            if result is None:
+                self._send_json({"error": f"comment '{comment_id}' not found"}, 404)
+            elif isinstance(result, str):
+                self._send_json({"error": result}, 400)
+            else:
+                self._send_json(result)
         else:
             self._send_json({"error": "not found"}, 404)
 
