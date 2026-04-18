@@ -9,12 +9,14 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
   .d2h-file-wrapper { margin-bottom: 1.5rem; }
+  .diff-scroll-container { overflow-x: auto; }
   .inline-comment-box { background: #fffbdd; border: 1px solid #e6c84a; border-radius: 4px; padding: 8px; margin: 4px 0; }
   .resolved-badge { display: inline-flex; align-items: center; gap: 4px; background: #d1fae5; color: #065f46; border-radius: 9999px; padding: 2px 8px; font-size: 0.75rem; }
   .comment-thread { background: #f8fafc; border-left: 3px solid #6366f1; padding: 8px 12px; margin: 2px 0; font-size: 0.85rem; }
   .comment-thread.ai-comment { background: #fdf4ff; border-left-color: #a855f7; }
   .d2h-code-line, .d2h-code-line-ctn { cursor: pointer; }
   .d2h-code-line:hover, .d2h-code-line-ctn:hover { background: rgba(99,102,241,0.08) !important; }
+  .d2h-code-linenumber { background-color: #f9fafb !important; }
   #file-tree a:hover { background: #e0e7ff; }
   #file-tree a.active { background: #e0e7ff; font-weight: 600; }
 </style>
@@ -176,8 +178,11 @@ function renderDiff(files) {
     wrapper.className = "mb-6";
 
     const singleFileDiff = buildUnifiedDiff([f]);
+    const scrollContainer = document.createElement("div");
+    scrollContainer.className = "diff-scroll-container";
     const targetEl = document.createElement("div");
-    wrapper.appendChild(targetEl);
+    scrollContainer.appendChild(targetEl);
+    wrapper.appendChild(scrollContainer);
     container.appendChild(wrapper);
 
     const ui = new Diff2HtmlUI(targetEl, singleFileDiff, {
@@ -252,6 +257,8 @@ function openCommentForm(row, file, line) {
 
   const textarea = tr.querySelector("textarea");
   textarea.focus();
+  const scrollContainer = tr.closest(".diff-scroll-container");
+  if (scrollContainer) scrollContainer.scrollLeft = 0;
 
   tr.querySelector(".btn-cancel").onclick = () => { tr.remove(); activeFormRow = null; };
   tr.querySelector(".btn-submit").onclick = async () => {
