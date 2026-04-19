@@ -211,12 +211,15 @@ function renderDiff(files) {
     targetEl.querySelectorAll(".d2h-code-line, .d2h-code-line-ctn").forEach(cell => {
       const row = cell.closest("tr");
       if (!row) return;
-      const lineNoCell = row.querySelector(".d2h-code-linenumber, .line-num1, .line-num2");
-      const lineNo = lineNoCell ? parseInt(lineNoCell.textContent.trim()) : NaN;
-      if (!lineNo || lineNo <= 0) return;
+      const prevTd = cell.previousElementSibling;
+      const lineNoCell = (prevTd && prevTd.classList.contains("d2h-code-linenumber"))
+        ? prevTd
+        : row.querySelector(".d2h-code-linenumber");
+      const numEl = lineNoCell && (lineNoCell.querySelector(".line-num1, .line-num2") || lineNoCell);
+      const lineNo = numEl ? parseInt(numEl.textContent.trim()) : NaN;
       cell.dataset.file = f.filename;
-      cell.dataset.line = lineNo;
       cell.dataset.fileIdx = fileIdx;
+      if (lineNo > 0) cell.dataset.line = lineNo;
     });
   });
 }
