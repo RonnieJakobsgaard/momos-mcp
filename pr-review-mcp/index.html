@@ -215,8 +215,14 @@ function renderDiff(files) {
       const lineNoCell = (prevTd && prevTd.classList.contains("d2h-code-linenumber"))
         ? prevTd
         : row.querySelector(".d2h-code-linenumber");
-      const numEl = lineNoCell && (lineNoCell.querySelector(".line-num1, .line-num2") || lineNoCell);
-      const lineNo = numEl ? parseInt(numEl.textContent.trim()) : NaN;
+      let lineNo = NaN;
+      if (lineNoCell) {
+        for (const el of lineNoCell.querySelectorAll(".line-num1, .line-num2")) {
+          const n = parseInt(el.textContent.trim());
+          if (n > 0) { lineNo = n; break; }
+        }
+        if (!(lineNo > 0)) lineNo = parseInt(lineNoCell.textContent.trim());
+      }
       cell.dataset.file = f.filename;
       cell.dataset.fileIdx = fileIdx;
       if (lineNo > 0) cell.dataset.line = lineNo;
