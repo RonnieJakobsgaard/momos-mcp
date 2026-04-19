@@ -390,7 +390,10 @@ function openCommentForm(row, file, line, clickedCell = null) {
   tr.querySelector(".btn-submit").onclick = async () => {
     const text = textarea.value.trim();
     if (!text) return;
-    await postComment(file, line, text, null, side);
+    const newComment = await postComment(file, line, text, null, side);
+    // Mark the anchor row with the new comment's ID so renderCommentThreads
+    // can find the exact row without re-searching by line number.
+    if (newComment?.id) row.dataset.commentAnchorId = newComment.id;
     tr.remove();
     activeFormRow = null;
     await refreshComments();
@@ -398,11 +401,12 @@ function openCommentForm(row, file, line, clickedCell = null) {
 }
 
 async function postComment(file, line, comment, parentId = null, side = "left") {
-  await fetch("/comments", {
+  const res = await fetch("/comments", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ file, line, comment, ...(parentId && { parent_id: parentId }), side }),
   });
+  return res.ok ? res.json() : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -606,10 +610,16 @@ function renderCommentThreads() {
 
   roots.forEach(c => {
     const side = c.side || "left";
-    const cells = document.querySelectorAll(`[data-file="${CSS.escape(c.file)}"][data-line="${c.line}"][data-side="${side}"]`);
-    const anchorCell = cells.length ? cells[0] : document.querySelector(`[data-file="${CSS.escape(c.file)}"][data-line="${c.line}"]`);
-    if (!anchorCell) return;
-    const row = anchorCell.closest("tr");
+    // Prefer the row that was explicitly marked during form submission (exact match).
+    let row = document.querySelector(`tr[data-comment-anchor-id="${c.id}"]`);
+    if (row) {
+      delete row.dataset.commentAnchorId;
+    } else {
+      const cells = document.querySelectorAll(`[data-file="${CSS.escape(c.file)}"][data-line="${c.line}"][data-side="${side}"]`);
+      const anchorCell = cells.length ? cells[0] : document.querySelector(`[data-file="${CSS.escape(c.file)}"][data-line="${c.line}"]`);
+      if (!anchorCell) return;
+      row = anchorCell.closest("tr");
+    }
     if (!row) return;
 
     const existingRow = document.getElementById(`thread-row-${c.id}`);
