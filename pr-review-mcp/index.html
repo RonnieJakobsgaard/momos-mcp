@@ -253,11 +253,6 @@ function openCommentForm(row, file, line, clickedCell = null) {
 
   const colspan = row.cells.length || 2;
   const isRightSide = clickedCell && clickedCell.dataset.side === "right";
-  if (isRightSide) {
-    formRow.style.cssText = "display:flex;justify-content:flex-end;";
-    const box = formRow.querySelector(".inline-comment-box");
-    if (box) box.style.width = "50%";
-  }
 
   const tr = document.createElement("tr");
   const td = document.createElement("td");
