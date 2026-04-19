@@ -10,9 +10,9 @@
 <style>
   .d2h-file-wrapper { margin-bottom: 1.5rem; }
   .diff-scroll-container { overflow-x: auto; }
-  .inline-comment-box { background: #fffbdd; border: 1px solid #e6c84a; border-radius: 4px; padding: 8px; margin: 4px 0; }
+  .inline-comment-box { background: #fffbdd; border: 1px solid #e6c84a; border-radius: 4px; padding: 8px; margin: 4px 0; position: sticky; left: 1rem; max-width: min(600px, calc(100vw - 2rem)); }
   .resolved-badge { display: inline-flex; align-items: center; gap: 4px; background: #d1fae5; color: #065f46; border-radius: 9999px; padding: 2px 8px; font-size: 0.75rem; }
-  .comment-thread { background: #f8fafc; border-left: 3px solid #6366f1; padding: 8px 12px; margin: 2px 0; font-size: 0.85rem; }
+  .comment-thread { background: #f8fafc; border-left: 3px solid #6366f1; padding: 8px 12px; margin: 2px 0; font-size: 0.85rem; max-width: 600px; }
   .comment-thread.ai-comment { background: #fdf4ff; border-left-color: #a855f7; }
   td[data-file] { cursor: pointer; }
   td[data-file]:hover { background: rgba(99,102,241,0.08) !important; }
@@ -378,6 +378,14 @@ function openCommentForm(row, file, line, clickedCell = null) {
   const scrollContainer = tr.closest(".diff-scroll-container");
   if (scrollContainer) scrollContainer.scrollLeft = 0;
 
+  // Offset the sticky form so it starts just right of the line-number columns
+  const lineNoCells = Array.from(row.querySelectorAll(".d2h-code-side-linenumber, .d2h-code-linenumber"));
+  const lineNoWidth = lineNoCells.reduce((sum, el) => sum + el.offsetWidth, 0);
+  const box = tr.querySelector(".inline-comment-box");
+  const gap = 8;
+  box.style.left = `${lineNoWidth + gap}px`;
+  box.style.maxWidth = `calc(min(600px, 100vw - ${lineNoWidth + gap * 2}px))`;
+
   tr.querySelector(".btn-cancel").onclick = () => { tr.remove(); activeFormRow = null; };
   const side = isRightSide ? "right" : "left";
   tr.querySelector(".btn-submit").onclick = async () => {
@@ -620,6 +628,11 @@ function renderCommentThreads() {
     tr.className = "comment-thread-row";
     const td = document.createElement("td");
     td.colSpan = colspan;
+
+    // Offset content past sticky line-number columns (same logic as comment form)
+    const lineNoCells = Array.from(row.querySelectorAll(".d2h-code-side-linenumber, .d2h-code-linenumber"));
+    const lineNoWidth = lineNoCells.reduce((sum, el) => sum + el.offsetWidth, 0);
+    if (lineNoWidth > 0) td.style.paddingLeft = `${lineNoWidth + 8}px`;
 
     const replies = repliesFor(c.id);
     td.innerHTML = buildCommentHtml(c, false, replies);
