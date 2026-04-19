@@ -3,6 +3,7 @@ import json
 import os
 import socket
 import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -655,9 +656,32 @@ def _resolve_port() -> int:
         print(f"WARNING: port {desired} already in use, falling back to {fallback}", flush=True)
         return fallback
 
+def _start_hot_reload_watcher():
+    """Poll server.py for changes and restart the process when it's modified."""
+    path = Path(__file__).resolve()
+    last_mtime = path.stat().st_mtime
+
+    def _watch():
+        nonlocal last_mtime
+        while True:
+            time.sleep(1)
+            try:
+                mtime = path.stat().st_mtime
+                if mtime != last_mtime:
+                    print("\n[hot-reload] server.py changed — restarting process.", flush=True)
+                    print("[hot-reload] Run /mcp in Claude Code to reconnect.\n", flush=True)
+                    time.sleep(0.3)
+                    os.execv(sys.executable, [sys.executable] + sys.argv)
+            except Exception:
+                pass
+
+    threading.Thread(target=_watch, daemon=True).start()
+
+
 state.port = _resolve_port()
 http_thread = threading.Thread(target=run_http_server, args=(state.port,), daemon=True)
 http_thread.start()
+_start_hot_reload_watcher()
 
 if __name__ == "__main__":
     mcp.run()
