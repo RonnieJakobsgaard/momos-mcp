@@ -208,16 +208,20 @@ function renderDiff(files) {
     }
 
     // Tag each code td with file/line data for click-to-comment.
-    // Side-by-side rows have 4 cells: [left-line-no][left-code][right-line-no][right-code].
-    // Iterate all line-number cells so both left and right code cells get tagged.
+    // Side-by-side renders two separate 2-cell tables inside .d2h-file-side-diff divs.
+    // Detect left/right by which table the cell belongs to.
+    const sideDiffs = Array.from(targetEl.querySelectorAll(".d2h-file-side-diff"));
     targetEl.querySelectorAll(".d2h-code-side-linenumber").forEach(lineNoCell => {
       const codeTd = lineNoCell.nextElementSibling;
       if (!codeTd) return;
       const lineNo = parseInt(lineNoCell.textContent.trim());
       if (!(lineNo > 0)) return;
+      const parentSideDiff = lineNoCell.closest(".d2h-file-side-diff");
+      const side = sideDiffs.indexOf(parentSideDiff) === 0 ? "left" : "right";
       codeTd.dataset.file = f.filename;
       codeTd.dataset.fileIdx = fileIdx;
       codeTd.dataset.line = lineNo;
+      codeTd.dataset.side = side;
     });
   });
 }
@@ -247,9 +251,8 @@ function openCommentForm(row, file, line, clickedCell = null) {
   const tpl = document.getElementById("comment-form-tpl");
   const formRow = tpl.content.cloneNode(true).querySelector(".comment-form-row");
 
-  const colspan = row.cells.length || 4;
-  const clickedTd = clickedCell && clickedCell.closest("td");
-  const isRightSide = clickedTd && colspan >= 4 && clickedTd.cellIndex >= colspan / 2;
+  const colspan = row.cells.length || 2;
+  const isRightSide = clickedCell && clickedCell.dataset.side === "right";
   if (isRightSide) {
     formRow.style.cssText = "display:flex;justify-content:flex-end;";
     const box = formRow.querySelector(".inline-comment-box");
@@ -271,21 +274,22 @@ function openCommentForm(row, file, line, clickedCell = null) {
   if (scrollContainer) scrollContainer.scrollLeft = 0;
 
   tr.querySelector(".btn-cancel").onclick = () => { tr.remove(); activeFormRow = null; };
+  const side = isRightSide ? "right" : "left";
   tr.querySelector(".btn-submit").onclick = async () => {
     const text = textarea.value.trim();
     if (!text) return;
-    await postComment(file, line, text);
+    await postComment(file, line, text, null, side);
     tr.remove();
     activeFormRow = null;
     await refreshComments();
   };
 }
 
-async function postComment(file, line, comment) {
+async function postComment(file, line, comment, parentId = null, side = "left") {
   await fetch("/comments", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ file, line, comment }),
+    body: JSON.stringify({ file, line, comment, ...(parentId && { parent_id: parentId }), side }),
   });
 }
 
@@ -449,14 +453,15 @@ function renderCommentThreads() {
   const repliesFor = id => comments.filter(c => c.parent_id === id);
 
   roots.forEach(c => {
-    const cells = document.querySelectorAll(`[data-file="${CSS.escape(c.file)}"][data-line="${c.line}"]`);
-    if (!cells.length) return;
-    const row = cells[0].closest("tr");
+    const side = c.side || "left";
+    const cells = document.querySelectorAll(`[data-file="${CSS.escape(c.file)}"][data-line="${c.line}"][data-side="${side}"]`);
+    const anchorCell = cells.length ? cells[0] : document.querySelector(`[data-file="${CSS.escape(c.file)}"][data-line="${c.line}"]`);
+    if (!anchorCell) return;
+    const row = anchorCell.closest("tr");
     if (!row) return;
 
     const existingRow = document.getElementById(`thread-row-${c.id}`);
     if (existingRow) {
-      // Update resolved badges only
       [c, ...repliesFor(c.id)].forEach(comment => {
         const badge = document.querySelector(`#comment-${comment.id} .resolved-badge`);
         if (badge) badge.style.display = comment.resolved ? "inline-flex" : "none";
@@ -464,7 +469,7 @@ function renderCommentThreads() {
       return;
     }
 
-    const colspan = row.cells.length || 4;
+    const colspan = row.cells.length || 2;
     const tr = document.createElement("tr");
     tr.id = `thread-row-${c.id}`;
     tr.className = "comment-thread-row";
