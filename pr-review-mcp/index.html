@@ -207,21 +207,17 @@ function renderDiff(files) {
       fileHeader.appendChild(btn);
     }
 
-    // Tag each code td with file/line data for click-to-comment
-    targetEl.querySelectorAll("tr").forEach(row => {
-      const lineNoCell = row.querySelector(".d2h-code-linenumber");
-      if (!lineNoCell) return;
+    // Tag each code td with file/line data for click-to-comment.
+    // Side-by-side rows have 4 cells: [left-line-no][left-code][right-line-no][right-code].
+    // Iterate all line-number cells so both left and right code cells get tagged.
+    targetEl.querySelectorAll(".d2h-code-side-linenumber").forEach(lineNoCell => {
       const codeTd = lineNoCell.nextElementSibling;
       if (!codeTd) return;
-      let lineNo = NaN;
-      for (const el of lineNoCell.querySelectorAll(".line-num1, .line-num2")) {
-        const n = parseInt(el.textContent.trim());
-        if (n > 0) { lineNo = n; break; }
-      }
-      if (!(lineNo > 0)) lineNo = parseInt(lineNoCell.textContent.trim());
+      const lineNo = parseInt(lineNoCell.textContent.trim());
+      if (!(lineNo > 0)) return;
       codeTd.dataset.file = f.filename;
       codeTd.dataset.fileIdx = fileIdx;
-      if (lineNo > 0) codeTd.dataset.line = lineNo;
+      codeTd.dataset.line = lineNo;
     });
   });
 }
