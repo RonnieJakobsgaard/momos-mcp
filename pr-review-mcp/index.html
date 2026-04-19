@@ -35,6 +35,10 @@
   </div>
   <div class="flex items-center gap-3">
     <span id="comment-count" class="text-sm text-gray-500"></span>
+    <div id="tab-switcher" class="flex rounded-md border border-gray-300 overflow-hidden text-xs font-medium">
+      <button id="btn-tab-diff" onclick="switchTab('diff')" class="px-3 py-1.5 transition">Diff</button>
+      <button id="btn-tab-overview" onclick="switchTab('overview')" class="px-3 py-1.5 border-l border-gray-300 transition">Overview</button>
+    </div>
     <div id="format-toggle" class="flex rounded-md border border-gray-300 overflow-hidden text-xs font-medium">
       <button id="btn-fmt-side" onclick="setDiffFormat('side-by-side')"
         class="px-3 py-1.5 transition">Side by side</button>
@@ -52,29 +56,44 @@
   </div>
 </header>
 
-<div class="flex h-[calc(100vh-57px)]">
+<div class="h-[calc(100vh-57px)] relative">
 
-  <!-- File tree -->
-  <aside id="file-tree" class="w-64 shrink-0 bg-white border-r border-gray-200 overflow-y-auto p-3">
-    <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 px-2">Files Changed</p>
-    <div id="file-list" class="space-y-0.5"></div>
-  </aside>
+  <!-- Diff panel: file tree + diff area -->
+  <div id="diff-panel" class="flex h-full">
+    <aside id="file-tree" class="w-64 shrink-0 bg-white border-r border-gray-200 overflow-y-auto p-3">
+      <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 px-2">Files Changed</p>
+      <div id="file-list" class="space-y-0.5"></div>
+    </aside>
+    <main class="flex-1 overflow-y-auto p-6" id="diff-area">
+      <div id="diff-container"></div>
+      <div id="empty-state" class="hidden text-center text-gray-400 mt-24">
+        <p class="text-lg">No diff loaded yet.</p>
+        <p class="text-sm mt-1">Call <code>create_review()</code> from Claude to start a review.</p>
+      </div>
+    </main>
+  </div>
 
-  <!-- Diff area -->
-  <main class="flex-1 overflow-y-auto p-6" id="diff-area">
-    <div id="diff-container"></div>
-    <div id="empty-state" class="hidden text-center text-gray-400 mt-24">
-      <p class="text-lg">No diff loaded yet.</p>
-      <p class="text-sm mt-1">Call <code>create_review()</code> from Claude to start a review.</p>
+  <!-- Overview panel -->
+  <div id="overview-panel" class="hidden h-full overflow-y-auto p-6 bg-gray-50">
+    <!-- General comments -->
+    <div class="max-w-3xl mx-auto mb-8">
+      <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">General Comments</h2>
+      <div id="general-comment-list" class="space-y-3 mb-4"></div>
+      <p id="general-empty" class="text-xs text-gray-400 mb-4 hidden">No general comments yet.</p>
+      <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+        <textarea id="general-comment-input" class="w-full text-sm border border-gray-200 rounded p-2 resize-y min-h-[80px] focus:outline-none focus:ring-2 focus:ring-indigo-400" placeholder="Add a general comment not tied to any line…"></textarea>
+        <div class="flex justify-end mt-2">
+          <button onclick="postGeneralComment()" class="px-4 py-1.5 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700 transition">Comment</button>
+        </div>
+      </div>
     </div>
-  </main>
-
-  <!-- Comment sidebar -->
-  <aside id="comment-sidebar" class="w-72 shrink-0 bg-white border-l border-gray-200 overflow-y-auto flex flex-col">
-    <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide px-4 py-3 border-b border-gray-100 sticky top-0 bg-white">Comments</p>
-    <div id="sidebar-comment-list" class="flex-1 divide-y divide-gray-100"></div>
-    <p id="sidebar-empty" class="text-xs text-gray-400 text-center py-8 px-4">No comments yet. Click any line in the diff to add one.</p>
-  </aside>
+    <!-- Line comments grouped by file -->
+    <div class="max-w-3xl mx-auto">
+      <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">Line Comments</h2>
+      <div id="overview-file-list"></div>
+      <p id="overview-line-empty" class="text-xs text-gray-400 text-center py-4 hidden">No line comments yet. Click any line in the diff to add one.</p>
+    </div>
+  </div>
 
 </div>
 
@@ -100,11 +119,13 @@ let comments = [];
 let reviewStatus = "pending";
 let activeFormRow = null;
 let diffFormat = localStorage.getItem("diffFormat") || "side-by-side";
+let activeTab = "diff";
 
 // ---------------------------------------------------------------------------
 // Boot
 // ---------------------------------------------------------------------------
 async function init() {
+  updateTabUI();
   updateFormatToggleUI();
   await loadDiff();
   await refreshComments();
@@ -138,6 +159,26 @@ async function loadDiff() {
 
 function showEmpty() {
   document.getElementById("empty-state").classList.remove("hidden");
+}
+
+// ---------------------------------------------------------------------------
+// Tab switcher
+// ---------------------------------------------------------------------------
+function updateTabUI() {
+  const isDiff = activeTab === "diff";
+  document.getElementById("btn-tab-diff").className =
+    `px-3 py-1.5 transition ${isDiff ? "bg-indigo-600 text-white" : "text-gray-600 hover:bg-gray-100"}`;
+  document.getElementById("btn-tab-overview").className =
+    `px-3 py-1.5 border-l border-gray-300 transition ${!isDiff ? "bg-indigo-600 text-white" : "text-gray-600 hover:bg-gray-100"}`;
+  document.getElementById("format-toggle").style.display = isDiff ? "" : "none";
+}
+
+function switchTab(tab) {
+  activeTab = tab;
+  document.getElementById("diff-panel").classList.toggle("hidden", tab !== "diff");
+  document.getElementById("overview-panel").classList.toggle("hidden", tab !== "overview");
+  updateTabUI();
+  if (tab === "overview") renderOverview();
 }
 
 // ---------------------------------------------------------------------------
@@ -374,7 +415,7 @@ async function refreshComments() {
     reviewStatus = data.status || "pending";
     updateStatusBadge(reviewStatus);
     renderCommentThreads();
-    renderSidebar();
+    if (activeTab === "overview") renderOverview();
     updateCommentCount();
     updateFileApproveBtns();
   } catch (e) { /* server not ready yet */ }
@@ -406,46 +447,86 @@ function updateCommentCount() {
   el.textContent = total ? `${resolved}/${total} resolved` : "";
 }
 
-function renderSidebar() {
-  const list = document.getElementById("sidebar-comment-list");
-  const empty = document.getElementById("sidebar-empty");
-  const sorted = [...comments].sort((a, b) => {
-    if (a.file < b.file) return -1;
-    if (a.file > b.file) return 1;
-    return (a.line || 0) - (b.line || 0);
-  });
+function renderOverview() {
+  const lineComments = comments.filter(c => !c.parent_id && c.file && c.line);
+  const generalComments = comments.filter(c => !c.parent_id && (!c.file || !c.line));
 
-  // Update or add entries
-  const seen = new Set();
-  sorted.forEach(c => {
-    seen.add(c.id);
-    let entry = document.getElementById(`sidebar-${c.id}`);
-    if (!entry) {
-      entry = document.createElement("div");
-      entry.id = `sidebar-${c.id}`;
-      entry.className = "px-4 py-3 cursor-pointer hover:bg-indigo-50 transition-colors";
-      entry.onclick = () => {
-        const el = document.getElementById(`comment-${c.id}`);
-        if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-      };
-      list.appendChild(entry);
-    }
-    const resolvedCls = c.resolved ? "line-through text-gray-400" : "text-gray-800";
-    const sidebarAiBadge = c.source === "ai"
-      ? `<span title="Posted by AI pre-review" class="inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-xs bg-purple-100 text-purple-700">🤖 AI</span>`
+  // General comments
+  const generalList = document.getElementById("general-comment-list");
+  const generalEmpty = document.getElementById("general-empty");
+  generalList.innerHTML = generalComments.map(c => {
+    const aiBadge = c.source === "ai"
+      ? `<span class="inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-xs bg-purple-100 text-purple-700">🤖 AI</span>`
       : "";
-    entry.innerHTML = `
-      <p class="text-xs text-indigo-500 font-mono truncate mb-0.5 flex items-center gap-1">${sidebarAiBadge}${escapeHtml(c.file)}${c.line ? `:${c.line}` : ""}</p>
-      <p class="text-sm ${resolvedCls} truncate">${escapeHtml(c.comment)}</p>
-      ${c.resolved ? `<span class="text-xs text-green-600">✓ Resolved</span>` : ""}`;
-  });
+    const resolvedBadge = c.resolved
+      ? `<span class="text-xs text-green-600 ml-2">✓ Resolved</span>` : "";
+    return `<div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm ${c.resolved ? "opacity-60" : ""}">
+      <div class="flex items-center gap-2 mb-1">${aiBadge}${resolvedBadge}</div>
+      <p class="text-sm text-gray-800 whitespace-pre-wrap">${escapeHtml(c.comment)}</p>
+    </div>`;
+  }).join("");
+  generalEmpty.classList.toggle("hidden", generalComments.length > 0);
 
-  // Remove stale entries
-  list.querySelectorAll("[id^='sidebar-']").forEach(el => {
-    if (!seen.has(el.id.replace("sidebar-", ""))) el.remove();
-  });
+  // Line comments grouped by file
+  const fileList = document.getElementById("overview-file-list");
+  const lineEmpty = document.getElementById("overview-line-empty");
 
-  empty.style.display = sorted.length ? "none" : "";
+  if (!lineComments.length) {
+    fileList.innerHTML = "";
+    lineEmpty.classList.remove("hidden");
+    return;
+  }
+  lineEmpty.classList.add("hidden");
+
+  const byFile = {};
+  lineComments
+    .sort((a, b) => a.file < b.file ? -1 : a.file > b.file ? 1 : (a.line || 0) - (b.line || 0))
+    .forEach(c => { (byFile[c.file] = byFile[c.file] || []).push(c); });
+
+  fileList.innerHTML = Object.entries(byFile).map(([file, cs]) => `
+    <div class="mb-6">
+      <p class="text-xs font-semibold text-gray-500 font-mono mb-2 px-1">${escapeHtml(file)}</p>
+      <div class="space-y-2">
+        ${cs.map(c => {
+          const aiBadge = c.source === "ai"
+            ? `<span class="inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-xs bg-purple-100 text-purple-700">🤖 AI</span>`
+            : "";
+          const resolvedBadge = c.resolved
+            ? `<span class="text-xs text-green-600">✓ Resolved</span>` : "";
+          return `<div class="bg-white border border-gray-200 rounded-lg p-3 shadow-sm cursor-pointer hover:border-indigo-400 transition-colors ${c.resolved ? "opacity-60" : ""}"
+                       onclick="goToComment('${c.id}')">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="text-xs text-indigo-500 font-mono">:${c.line}</span>
+              ${aiBadge}${resolvedBadge}
+            </div>
+            <p class="text-sm text-gray-800 line-clamp-3">${escapeHtml(c.comment)}</p>
+          </div>`;
+        }).join("")}
+      </div>
+    </div>`).join("");
+}
+
+function goToComment(id) {
+  switchTab("diff");
+  setTimeout(() => {
+    document.getElementById(`comment-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, 50);
+}
+
+async function postGeneralComment() {
+  const input = document.getElementById("general-comment-input");
+  const text = input.value.trim();
+  if (!text) return;
+  await fetch("/comments", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ file: "", line: 0, comment: text }),
+  });
+  input.value = "";
+  const data = await (await fetch("/comments")).json();
+  comments = data.comments || [];
+  renderOverview();
+  updateCommentCount();
 }
 
 function buildCommentHtml(c, isReply = false, replies = []) {
@@ -566,7 +647,7 @@ async function submitReply(parentId, file, line) {
   reviewStatus = data.status || "pending";
   document.querySelectorAll(".comment-thread-row").forEach(r => r.remove());
   renderCommentThreads();
-  renderSidebar();
+  if (activeTab === "overview") renderOverview();
 }
 
 async function approveFile(filename, btn) {
