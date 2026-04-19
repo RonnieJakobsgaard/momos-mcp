@@ -51,7 +51,8 @@ class SharedState:
             self._write_comments()
 
     def add_comment(self, file: str, line: int, comment: str,
-                    parent_id: str | None = None, source: str = "human") -> dict | str:
+                    parent_id: str | None = None, source: str = "human",
+                    side: str = "left") -> dict | str:
         with self.lock:
             if parent_id is not None:
                 if not any(c["id"] == parent_id for c in self.comments):
@@ -59,7 +60,7 @@ class SharedState:
             entry = {
                 "id": str(uuid.uuid4()), "file": file, "line": line,
                 "comment": comment, "resolved": False, "parent_id": parent_id,
-                "source": source,
+                "source": source, "side": side,
             }
             self.comments.append(entry)
             self._write_comments()
@@ -197,7 +198,8 @@ class ReviewHandler(http.server.BaseHTTPRequestHandler):
                 self._send_json({"error": "comment required"}, 400)
                 return
             parent_id = body.get("parent_id") or None
-            entry = state.add_comment(file, line, comment, parent_id)
+            side = body.get("side", "left")
+            entry = state.add_comment(file, line, comment, parent_id, side=side)
             if isinstance(entry, str):
                 self._send_json({"error": entry}, 404)
                 return
