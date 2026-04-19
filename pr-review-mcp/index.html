@@ -378,6 +378,14 @@ function openCommentForm(row, file, line, clickedCell = null) {
   const scrollContainer = tr.closest(".diff-scroll-container");
   if (scrollContainer) scrollContainer.scrollLeft = 0;
 
+  // Offset the sticky form so it starts just right of the line-number columns
+  const lineNoCells = Array.from(row.querySelectorAll(".d2h-code-side-linenumber, .d2h-code-linenumber"));
+  const lineNoWidth = lineNoCells.reduce((sum, el) => sum + el.offsetWidth, 0);
+  const box = tr.querySelector(".inline-comment-box");
+  const gap = 8;
+  box.style.left = `${lineNoWidth + gap}px`;
+  box.style.maxWidth = `calc(min(600px, 100vw - ${lineNoWidth + gap * 2}px))`;
+
   tr.querySelector(".btn-cancel").onclick = () => { tr.remove(); activeFormRow = null; };
   const side = isRightSide ? "right" : "left";
   tr.querySelector(".btn-submit").onclick = async () => {
