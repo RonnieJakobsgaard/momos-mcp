@@ -438,9 +438,11 @@ def create_review(base_ref: str = "main", head_ref: str = "HEAD", ai_pre_review:
 
 
 @mcp.tool()
-async def wait_for_approval(timeout_seconds: int = 600) -> dict:
+async def wait_for_approval(timeout_seconds: int = 86400) -> dict:
     """Block until the user approves or requests changes. Call immediately after create_review()."""
     deadline = time.time() + timeout_seconds
+    last_keepalive = time.time()
+    keepalive_interval = 300  # log every 5 minutes
     while time.time() < deadline:
         snap = state.snapshot()
         if snap["status"] in ("approved", "changes_requested"):
@@ -451,6 +453,11 @@ async def wait_for_approval(timeout_seconds: int = 600) -> dict:
                 if suggested:
                     snap["suggested_message"] = suggested
             return snap
+        now = time.time()
+        if now - last_keepalive >= keepalive_interval:
+            elapsed = int(now - (deadline - timeout_seconds))
+            print(f"[wait_for_approval] still waiting... ({elapsed}s elapsed)", flush=True)
+            last_keepalive = now
         await anyio.sleep(2)
     return {"error": f"Timed out after {timeout_seconds}s", "status": "timeout"}
 
