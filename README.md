@@ -1,5 +1,6 @@
 # git-pr-mcp-server
 
+
 A local MCP server that brings an interactive, browser-based PR review loop to Claude Code.
 
 Instead of committing blindly, Claude opens a GitHub-style diff UI in your browser after
