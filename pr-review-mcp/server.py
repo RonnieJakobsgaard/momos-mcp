@@ -403,7 +403,7 @@ def _validate_ref(ref: str) -> str | None:
 
 
 @mcp.tool()
-def create_review(base_ref: str = "main", head_ref: str = "HEAD", ai_pre_review: bool = False) -> dict:
+def create_review(base_ref: str = "main", head_ref: str = "HEAD", ai_pre_review: bool = False, title: str = "") -> dict:
     """Run git diff, parse it, serve the review UI, and open the browser."""
     for ref in (base_ref, head_ref):
         if err := _validate_ref(ref):
@@ -423,6 +423,7 @@ def create_review(base_ref: str = "main", head_ref: str = "HEAD", ai_pre_review:
     diff_data = parse_diff(raw)
     diff_data["base_ref"] = base_ref
     diff_data["head_ref"] = head_ref
+    diff_data["title"] = title
     diff_data["_raw"] = raw
     state.reset()
     with state.lock:

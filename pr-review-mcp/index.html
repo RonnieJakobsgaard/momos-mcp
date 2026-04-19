@@ -56,7 +56,12 @@
   </div>
 </header>
 
-<div class="h-[calc(100vh-57px)] relative">
+<!-- Title tile (hidden when no title) -->
+<div id="title-tile" class="hidden bg-indigo-50 border-b border-indigo-100 px-6 py-2">
+  <p id="title-text" class="text-sm font-medium text-indigo-800"></p>
+</div>
+
+<div id="main-panels" class="h-[calc(100vh-57px)] relative">
 
   <!-- Diff panel: file tree + diff area -->
   <div id="diff-panel" class="flex h-full">
@@ -73,7 +78,7 @@
     </main>
   </div>
 
-  <!-- Overview panel -->
+  <!-- Overview panel (sibling of diff-panel inside main-panels) -->
   <div id="overview-panel" class="hidden h-full overflow-y-auto p-6 bg-gray-50">
     <!-- General comments -->
     <div class="max-w-3xl mx-auto mb-8">
@@ -150,6 +155,14 @@ async function loadDiff() {
   if (diffData.base_ref || diffData.head_ref) {
     document.getElementById("ref-range").textContent =
       `${diffData.base_ref ?? "main"} → ${diffData.head_ref ?? "HEAD"}`;
+  }
+
+  const titleTile = document.getElementById("title-tile");
+  const titleText = document.getElementById("title-text");
+  if (diffData.title) {
+    titleText.textContent = diffData.title;
+    titleTile.classList.remove("hidden");
+    document.getElementById("main-panels").style.height = `calc(100vh - 57px - ${titleTile.offsetHeight || 37}px)`;
   }
 
   renderFileTree(files);
