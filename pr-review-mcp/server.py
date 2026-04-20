@@ -452,6 +452,12 @@ def create_review(base_ref: str = "main", head_ref: str = "HEAD", ai_pre_review:
     diff_data["head_ref"] = head_ref
     diff_data["title"] = title
     diff_data["_raw"] = raw
+    for file_info in diff_data.get("files", []):
+        lc = subprocess.run(
+            ["git", "show", f"{head_ref}:{file_info['filename']}"],
+            capture_output=True, text=True
+        )
+        file_info["total_lines"] = len(lc.stdout.splitlines()) if lc.returncode == 0 else None
     state.reset()
     with state.lock:
         state.diff_data = diff_data

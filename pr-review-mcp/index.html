@@ -393,7 +393,8 @@ function injectExpandButtons(f, targetEl) {
       if (gapEnd >= gapStart) insertPair(gapStart, gapEnd, i);
     });
     const lastRange = ranges.filter(Boolean).pop();
-    if (lastRange) insertPair(lastRange.end + 1, Infinity, null);
+    if (lastRange && f.total_lines != null && lastRange.end < f.total_lines)
+      insertPair(lastRange.end + 1, f.total_lines, null);
 
   } else {
     const table = targetEl.querySelector("table.d2h-diff-table");
@@ -409,8 +410,8 @@ function injectExpandButtons(f, targetEl) {
         table.insertBefore(makeExpandTbody(f.filename, gapStart, gapEnd, ref, 3, "unified", null), tbodies[i]);
     });
     const lastRange = ranges.filter(Boolean).pop();
-    if (lastRange)
-      table.appendChild(makeExpandTbody(f.filename, lastRange.end + 1, Infinity, ref, 3, "unified", null));
+    if (lastRange && f.total_lines != null && lastRange.end < f.total_lines)
+      table.appendChild(makeExpandTbody(f.filename, lastRange.end + 1, f.total_lines, ref, 3, "unified", null));
   }
 }
 
