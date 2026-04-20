@@ -60,13 +60,28 @@ After making any significant code changes:
 
 ## MCP Tools
 
+### Review loop
+
 | Tool | Description |
 |------|-------------|
-| `create_review(base_branch="main")` | Diffs against base branch, opens browser UI |
-| `wait_for_approval(timeout_seconds=600)` | Blocks until approved or changes requested |
+| `create_review(base_ref="main", head_ref="HEAD", title="", ai_pre_review=False)` | Diffs against base ref, opens browser UI |
+| `wait_for_approval(timeout_seconds=86400)` | Blocks until approved or changes requested |
 | `get_comments()` | Returns current comments and status |
 | `mark_comment_resolved(comment_id)` | Marks a comment resolved after fixing it |
 | `approve_and_commit(message)` | Commits — only works when all comments resolved |
+
+### Per-file approval
+
+| Tool | Description |
+|------|-------------|
+| `approve_file(filename)` | Approves a single file; auto-approves the whole review once all files are approved |
+
+### Review history
+
+| Tool | Description |
+|------|-------------|
+| `list_reviews()` | Returns summaries of past review sessions, newest first |
+| `get_review(commit_hash)` | Returns the full review record for a specific commit |
 
 ## Manual smoke test
 
