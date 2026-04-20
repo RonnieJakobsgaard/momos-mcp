@@ -386,13 +386,9 @@ function injectExpandButtons(f, targetEl) {
       }
     };
 
-    ranges.forEach((range, i) => {
-      if (!range) return;
-      const prevEnd = i === 0 ? 0 : (ranges[i - 1] ? ranges[i - 1].end : 0);
-      const gapStart = prevEnd + 1;
-      const gapEnd = range.start - 1;
-      if (gapEnd - gapStart >= 2) insertPair(gapStart, gapEnd, i);
-    });
+    const firstRange = ranges.find(r => r !== null);
+    if (firstRange && firstRange.start > 3)
+      insertPair(1, firstRange.start - 1, 0);
     const lastRange = ranges.filter(Boolean).pop();
     if (lastRange && f.total_lines != null && lastRange.end < f.total_lines)
       insertPair(lastRange.end + 1, f.total_lines, null);
@@ -402,14 +398,9 @@ function injectExpandButtons(f, targetEl) {
     if (!table) return;
     const tbodies = Array.from(table.querySelectorAll("tbody"));
 
-    ranges.forEach((range, i) => {
-      if (!range) return;
-      const prevEnd = i === 0 ? 0 : (ranges[i - 1] ? ranges[i - 1].end : 0);
-      const gapStart = prevEnd + 1;
-      const gapEnd = range.start - 1;
-      if (gapEnd - gapStart >= 2)
-        table.insertBefore(makeExpandTbody(f.filename, gapStart, gapEnd, ref, 3, "unified", null), tbodies[i]);
-    });
+    const firstRange = ranges.find(r => r !== null);
+    if (firstRange && firstRange.start > 3)
+      table.insertBefore(makeExpandTbody(f.filename, 1, firstRange.start - 1, ref, 3, "unified", null), tbodies[0]);
     const lastRange = ranges.filter(Boolean).pop();
     if (lastRange && f.total_lines != null && lastRange.end < f.total_lines)
       table.appendChild(makeExpandTbody(f.filename, lastRange.end + 1, f.total_lines, ref, 3, "unified", null));
