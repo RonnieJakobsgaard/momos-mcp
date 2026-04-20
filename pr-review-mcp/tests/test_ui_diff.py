@@ -2,8 +2,8 @@
 
 
 def test_file_tree_shows_both_files(ui_page):
-    links = ui_page.locator("#file-list a").all()
-    names = [l.inner_text() for l in links]
+    labels = ui_page.locator("#file-list a span.truncate").all()
+    names = [l.inner_text() for l in labels]
     assert "foo.py" in names
     assert "bar.py" in names
 
