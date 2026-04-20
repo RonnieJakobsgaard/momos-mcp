@@ -2,8 +2,8 @@
 import json
 import pytest
 from unittest.mock import patch, MagicMock
-import server
-from server import state
+import janus_mcp.server as server
+from janus_mcp.server import state
 
 
 @pytest.fixture(autouse=True)
@@ -33,9 +33,9 @@ def _make_client(text: str):
 
 def test_ai_pre_review_injects_valid_comments():
     comment = json.dumps({"file": "foo.py", "line": 5, "comment": "missing null check"})
-    with patch("server._HAS_ANTHROPIC", True), \
-         patch("server.os.environ.get", return_value="fake-key"), \
-         patch("server._anthropic.Anthropic", return_value=_make_client(comment)):
+    with patch("janus_mcp.server._HAS_ANTHROPIC", True), \
+         patch("janus_mcp.server.os.environ.get", return_value="fake-key"), \
+         patch("janus_mcp.server._anthropic.Anthropic", return_value=_make_client(comment)):
         server._run_ai_pre_review("diff text")
 
     comments = state.snapshot()["comments"]
@@ -47,9 +47,9 @@ def test_ai_pre_review_injects_valid_comments():
 
 def test_ai_pre_review_skips_malformed_lines():
     output = "not json\n" + json.dumps({"file": "a.py", "line": 1, "comment": "ok"})
-    with patch("server._HAS_ANTHROPIC", True), \
-         patch("server.os.environ.get", return_value="fake-key"), \
-         patch("server._anthropic.Anthropic", return_value=_make_client(output)):
+    with patch("janus_mcp.server._HAS_ANTHROPIC", True), \
+         patch("janus_mcp.server.os.environ.get", return_value="fake-key"), \
+         patch("janus_mcp.server._anthropic.Anthropic", return_value=_make_client(output)):
         server._run_ai_pre_review("diff text")
 
     assert len(state.snapshot()["comments"]) == 1
@@ -57,24 +57,24 @@ def test_ai_pre_review_skips_malformed_lines():
 
 def test_ai_pre_review_skips_entries_missing_comment():
     output = json.dumps({"file": "a.py", "line": 1})
-    with patch("server._HAS_ANTHROPIC", True), \
-         patch("server.os.environ.get", return_value="fake-key"), \
-         patch("server._anthropic.Anthropic", return_value=_make_client(output)):
+    with patch("janus_mcp.server._HAS_ANTHROPIC", True), \
+         patch("janus_mcp.server.os.environ.get", return_value="fake-key"), \
+         patch("janus_mcp.server._anthropic.Anthropic", return_value=_make_client(output)):
         server._run_ai_pre_review("diff text")
 
     assert state.snapshot()["comments"] == []
 
 
 def test_ai_pre_review_no_op_when_anthropic_missing():
-    with patch("server._HAS_ANTHROPIC", False):
+    with patch("janus_mcp.server._HAS_ANTHROPIC", False):
         server._run_ai_pre_review("diff text")
 
     assert state.snapshot()["comments"] == []
 
 
 def test_ai_pre_review_no_op_when_api_key_missing():
-    with patch("server._HAS_ANTHROPIC", True), \
-         patch("server.os.environ.get", return_value=None):
+    with patch("janus_mcp.server._HAS_ANTHROPIC", True), \
+         patch("janus_mcp.server.os.environ.get", return_value=None):
         server._run_ai_pre_review("diff text")
 
     assert state.snapshot()["comments"] == []
@@ -83,9 +83,9 @@ def test_ai_pre_review_no_op_when_api_key_missing():
 def test_ai_pre_review_no_op_on_api_exception():
     mock_client = MagicMock()
     mock_client.messages.create.side_effect = Exception("network error")
-    with patch("server._HAS_ANTHROPIC", True), \
-         patch("server.os.environ.get", return_value="fake-key"), \
-         patch("server._anthropic.Anthropic", return_value=mock_client):
+    with patch("janus_mcp.server._HAS_ANTHROPIC", True), \
+         patch("janus_mcp.server.os.environ.get", return_value="fake-key"), \
+         patch("janus_mcp.server._anthropic.Anthropic", return_value=mock_client):
         server._run_ai_pre_review("diff text")
 
     assert state.snapshot()["comments"] == []
@@ -96,36 +96,36 @@ def test_ai_pre_review_no_op_on_api_exception():
 # ---------------------------------------------------------------------------
 
 def test_suggest_commit_message_returns_string():
-    with patch("server._HAS_ANTHROPIC", True), \
-         patch("server.os.environ.get", return_value="fake-key"), \
-         patch("server._anthropic.Anthropic", return_value=_make_client("feat: add null check")):
+    with patch("janus_mcp.server._HAS_ANTHROPIC", True), \
+         patch("janus_mcp.server.os.environ.get", return_value="fake-key"), \
+         patch("janus_mcp.server._anthropic.Anthropic", return_value=_make_client("feat: add null check")):
         result = server._suggest_commit_message("diff text")
 
     assert result == "feat: add null check"
 
 
 def test_suggest_commit_message_returns_none_when_anthropic_missing():
-    with patch("server._HAS_ANTHROPIC", False):
+    with patch("janus_mcp.server._HAS_ANTHROPIC", False):
         assert server._suggest_commit_message("diff text") is None
 
 
 def test_suggest_commit_message_returns_none_when_api_key_missing():
-    with patch("server._HAS_ANTHROPIC", True), \
-         patch("server.os.environ.get", return_value=None):
+    with patch("janus_mcp.server._HAS_ANTHROPIC", True), \
+         patch("janus_mcp.server.os.environ.get", return_value=None):
         assert server._suggest_commit_message("diff text") is None
 
 
 def test_suggest_commit_message_returns_none_on_empty_response():
-    with patch("server._HAS_ANTHROPIC", True), \
-         patch("server.os.environ.get", return_value="fake-key"), \
-         patch("server._anthropic.Anthropic", return_value=_make_client("")):
+    with patch("janus_mcp.server._HAS_ANTHROPIC", True), \
+         patch("janus_mcp.server.os.environ.get", return_value="fake-key"), \
+         patch("janus_mcp.server._anthropic.Anthropic", return_value=_make_client("")):
         assert server._suggest_commit_message("diff text") is None
 
 
 def test_suggest_commit_message_returns_none_on_exception():
     mock_client = MagicMock()
     mock_client.messages.create.side_effect = Exception("timeout")
-    with patch("server._HAS_ANTHROPIC", True), \
-         patch("server.os.environ.get", return_value="fake-key"), \
-         patch("server._anthropic.Anthropic", return_value=mock_client):
+    with patch("janus_mcp.server._HAS_ANTHROPIC", True), \
+         patch("janus_mcp.server.os.environ.get", return_value="fake-key"), \
+         patch("janus_mcp.server._anthropic.Anthropic", return_value=mock_client):
         assert server._suggest_commit_message("diff text") is None

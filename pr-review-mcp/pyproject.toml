@@ -1,0 +1,29 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "janus-mcp"
+version = "0.1.0"
+description = "Human-in-the-loop browser review loop for AI coding agents"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp",
+    "anyio",
+]
+
+[project.optional-dependencies]
+ai = ["anthropic"]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "pytest-playwright",
+    "playwright",
+]
+
+[project.scripts]
+janus-mcp = "janus_mcp:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["janus_mcp"]

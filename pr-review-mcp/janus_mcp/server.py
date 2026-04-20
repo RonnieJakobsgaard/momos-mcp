@@ -718,10 +718,13 @@ def _start_hot_reload_watcher():
     threading.Thread(target=_watch, daemon=True).start()
 
 
-state.port = _resolve_port()
-http_thread = threading.Thread(target=run_http_server, args=(state.port,), daemon=True)
-http_thread.start()
-_start_hot_reload_watcher()
+def main():
+    state.port = _resolve_port()
+    http_thread = threading.Thread(target=run_http_server, args=(state.port,), daemon=True)
+    http_thread.start()
+    _start_hot_reload_watcher()
+    mcp.run()
+
 
 if __name__ == "__main__":
-    mcp.run()
+    main()

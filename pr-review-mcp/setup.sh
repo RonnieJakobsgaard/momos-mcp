@@ -7,11 +7,10 @@ cd "$SCRIPT_DIR"
 echo "Creating virtual environment..."
 python3 -m venv .venv
 
-echo "Installing dependencies..."
-.venv/bin/pip install --quiet -r requirements.txt
+echo "Installing janus-mcp..."
+.venv/bin/pip install --quiet -e .
 
-PYTHON="$SCRIPT_DIR/.venv/bin/python"
-SERVER="$SCRIPT_DIR/server.py"
+ENTRY="$SCRIPT_DIR/.venv/bin/janus-mcp"
 
 echo ""
 echo "Setup complete!"
@@ -22,9 +21,21 @@ echo ""
 cat <<EOF
 {
   "mcpServers": {
-    "pr-review": {
-      "command": "$PYTHON",
-      "args": ["$SERVER"]
+    "janus": {
+      "command": "$ENTRY"
+    }
+  }
+}
+EOF
+echo ""
+echo "Once published to PyPI, you can skip setup.sh entirely and use:"
+echo ""
+cat <<'EOF'
+{
+  "mcpServers": {
+    "janus": {
+      "command": "uvx",
+      "args": ["janus-mcp"]
     }
   }
 }

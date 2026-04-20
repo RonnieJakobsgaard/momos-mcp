@@ -1,7 +1,7 @@
 """UI tests — expand context buttons (top/bottom of file)."""
 import copy
 import pytest
-from server import state
+from janus_mcp.server import state
 
 
 # Hunk covers lines 20-30 of server.py (tracked file).

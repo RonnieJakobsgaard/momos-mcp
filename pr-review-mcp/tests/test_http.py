@@ -2,8 +2,8 @@
 import http.client
 import json
 import pytest
-import server
-from server import state
+import janus_mcp.server as server
+from janus_mcp.server import state
 
 
 @pytest.fixture(autouse=True)

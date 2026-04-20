@@ -1,11 +1,16 @@
-import sys
-import os
 import copy
+import threading
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from janus_mcp.server import state, _resolve_port, run_http_server, _start_hot_reload_watcher
 
-from server import state
+
+@pytest.fixture(scope="session", autouse=True)
+def start_http_server():
+    state.port = _resolve_port()
+    t = threading.Thread(target=run_http_server, args=(state.port,), daemon=True)
+    t.start()
+    _start_hot_reload_watcher()
 
 # ---------------------------------------------------------------------------
 # Synthetic diff used by UI tests
