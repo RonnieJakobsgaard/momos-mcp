@@ -689,7 +689,15 @@ def _resolve_port() -> int:
         return fallback
 
 def _start_hot_reload_watcher():
-    """Poll server.py for changes and restart the process when it's modified."""
+    """Poll server.py for changes and restart the process when it's modified.
+
+    Only active when PR_REVIEW_HOT_RELOAD=1 is set. Off by default because
+    os.execv kills the MCP stdio connection, requiring a manual /mcp reconnect.
+    index.html is read from disk on every request, so UI changes never need this.
+    """
+    if not os.environ.get("PR_REVIEW_HOT_RELOAD"):
+        return
+
     path = Path(__file__).resolve()
     last_mtime = path.stat().st_mtime
 
