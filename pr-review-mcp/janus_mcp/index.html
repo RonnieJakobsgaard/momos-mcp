@@ -28,6 +28,15 @@
   .expand-ctx-btn { font-size: 0.68rem; color: #94a3b8; padding: 1px 10px; border-radius: 3px; cursor: pointer; letter-spacing: 0.02em; }
   .expand-ctx-btn:hover { background: #e0e7ff; color: #4338ca; }
   .expand-ctx-line td { background: #f8fafc !important; }
+  .type-btn { padding: 2px 8px; font-size: 0.7rem; border-radius: 4px; border: 1px solid #d1d5db; color: #9ca3af; cursor: pointer; transition: all .15s; background: #fff; }
+  .type-btn:hover { border-color: #9ca3af; color: #6b7280; }
+  .comment-type-selector[data-selected="nitpick"]    .type-btn[data-type="nitpick"]    { background: #374151; color: #fff; border-color: #374151; font-weight: 600; }
+  .comment-type-selector[data-selected="suggestion"] .type-btn[data-type="suggestion"] { background: #4f46e5; color: #fff; border-color: #4f46e5; font-weight: 600; }
+  .comment-type-selector[data-selected="blocker"]    .type-btn[data-type="blocker"]    { background: #dc2626; color: #fff; border-color: #dc2626; font-weight: 600; }
+  .type-badge { display:inline-flex; align-items:center; padding: 1px 7px; border-radius: 9999px; font-size: 0.7rem; font-weight: 600; }
+  .type-badge-nitpick    { background:#e5e7eb; color:#374151; border:1px solid #9ca3af; }
+  .type-badge-suggestion { background:#e0e7ff; color:#3730a3; border:1px solid #6366f1; }
+  .type-badge-blocker    { background:#fee2e2; color:#991b1b; border:1px solid #ef4444; }
 </style>
 </head>
 <body class="bg-gray-50 text-gray-900 min-h-screen">
@@ -123,9 +132,9 @@
       <textarea class="w-full text-sm border border-gray-300 rounded p-2 resize-y min-h-[60px] focus:outline-none focus:ring-2 focus:ring-indigo-400" placeholder="Leave a comment…"></textarea>
       <div class="flex items-center justify-between mt-2">
         <div class="flex gap-1 comment-type-selector" data-selected="suggestion">
-          <button type="button" data-type="nitpick"    class="type-btn px-2 py-0.5 text-xs rounded border transition border-gray-300 text-gray-400 hover:border-gray-400">nitpick</button>
-          <button type="button" data-type="suggestion" class="type-btn px-2 py-0.5 text-xs rounded border transition border-indigo-500 bg-indigo-600 text-white font-semibold">suggestion</button>
-          <button type="button" data-type="blocker"    class="type-btn px-2 py-0.5 text-xs rounded border transition border-gray-300 text-gray-400 hover:border-gray-400">blocker</button>
+          <button type="button" data-type="nitpick">nitpick</button>
+          <button type="button" data-type="suggestion">suggestion</button>
+          <button type="button" data-type="blocker">blocker</button>
         </div>
         <div class="flex gap-2">
           <button class="btn-cancel text-xs text-gray-500 hover:text-gray-700">Cancel</button>
@@ -140,16 +149,7 @@
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-const TYPE_STYLES = {
-  nitpick:    { active: "border-gray-500 bg-gray-200 text-gray-800 font-semibold",     inactive: "border-gray-300 text-gray-400 hover:border-gray-400" },
-  suggestion: { active: "border-indigo-500 bg-indigo-600 text-white font-semibold",    inactive: "border-gray-300 text-gray-400 hover:border-gray-400" },
-  blocker:    { active: "border-red-600 bg-red-600 text-white font-semibold",          inactive: "border-gray-300 text-gray-400 hover:border-gray-400" },
-};
-const TYPE_BADGE = {
-  nitpick:    "bg-gray-200 text-gray-700 border border-gray-400",
-  suggestion: "bg-indigo-100 text-indigo-800 border border-indigo-400",
-  blocker:    "bg-red-100 text-red-800 border border-red-400 font-semibold",
-};
+const TYPE_BADGE_CLS = { nitpick: "type-badge type-badge-nitpick", suggestion: "type-badge type-badge-suggestion", blocker: "type-badge type-badge-blocker" };
 
 // ---------------------------------------------------------------------------
 // State
@@ -707,17 +707,10 @@ function openCommentForm(row, file, line, clickedCell = null) {
 
   tr.querySelector(".btn-cancel").onclick = () => { tr.remove(); activeFormRow = null; };
 
-  // Type selector
+  // Type selector — CSS handles active styling via data-selected attribute
   const typeSelector = tr.querySelector(".comment-type-selector");
-  tr.querySelectorAll(".type-btn").forEach(btn => {
-    btn.onclick = () => {
-      typeSelector.dataset.selected = btn.dataset.type;
-      tr.querySelectorAll(".type-btn").forEach(b => {
-        const active = b.dataset.type === btn.dataset.type;
-        const colors = TYPE_STYLES[b.dataset.type];
-        b.className = `type-btn px-2 py-0.5 text-xs rounded border transition font-medium ${active ? colors.active : colors.inactive}`;
-      });
-    };
+  tr.querySelectorAll("[data-type]").forEach(btn => {
+    btn.onclick = () => { typeSelector.dataset.selected = btn.dataset.type; };
   });
 
   const side = isRightSide ? "right" : "left";
@@ -873,9 +866,8 @@ function renderOverview() {
             : "";
           const resolvedBadge = c.resolved
             ? `<span class="text-xs text-green-600">✓ Resolved</span>` : "";
-          const typeCls2 = TYPE_BADGE[c.comment_type] || TYPE_BADGE.suggestion;
           const typeBadge2 = c.comment_type
-            ? `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${typeCls2}">${c.comment_type}</span>`
+            ? `<span class="${TYPE_BADGE_CLS[c.comment_type] || TYPE_BADGE_CLS.suggestion}">${c.comment_type}</span>`
             : "";
           return `<div class="bg-white border border-gray-200 rounded-lg p-3 shadow-sm cursor-pointer hover:border-indigo-400 transition-colors ${c.resolved ? "opacity-60" : ""}"
                        onclick="goToComment('${c.id}')">
@@ -925,9 +917,8 @@ function buildCommentHtml(c, isReply = false, replies = []) {
   const aiBadge = isAI
     ? `<span title="Posted by AI pre-review" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700 shrink-0">🤖 AI</span>`
     : "";
-  const typeCls = TYPE_BADGE[c.comment_type] || TYPE_BADGE.suggestion;
   const typeBadge = (!isReply && c.comment_type)
-    ? `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium shrink-0 ${typeCls}">${c.comment_type}</span>`
+    ? `<span class="${TYPE_BADGE_CLS[c.comment_type] || TYPE_BADGE_CLS.suggestion}">${c.comment_type}</span>`
     : "";
   const replyBtn = (!c.resolved && reviewStatus === "pending" && !isReply)
     ? `<button onclick="openReplyForm('${c.id}')" class="text-xs text-indigo-400 hover:text-indigo-600 mt-1">Reply</button>`
