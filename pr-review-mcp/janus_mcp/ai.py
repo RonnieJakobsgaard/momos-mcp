@@ -45,7 +45,7 @@ def _run_ai_pre_review(diff_text: str) -> None:
     try:
         client = _anthropic.Anthropic(api_key=api_key)
         response = client.messages.create(
-            model="claude-opus-4-7",
+            model="claude-haiku-4-5-20251001",
             max_tokens=2048,
             system=[{
                 "type": "text",
@@ -91,7 +91,7 @@ def _suggest_commit_message(diff_text: str) -> str | None:
     try:
         client = _anthropic.Anthropic(api_key=api_key)
         response = client.messages.create(
-            model="claude-opus-4-7",
+            model="claude-haiku-4-5-20251001",
             max_tokens=128,
             system=[{
                 "type": "text",

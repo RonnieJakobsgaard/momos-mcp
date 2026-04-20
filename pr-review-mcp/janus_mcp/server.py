@@ -19,6 +19,18 @@ from janus_mcp.state import state
 
 mcp = FastMCP("pr-review")
 
+_COMMENT_FIELDS = {"id", "file", "line", "comment", "resolved"}
+
+
+def _slim_snapshot(snap: dict) -> dict:
+    """Strip internal-only comment fields before returning to Claude."""
+    slim = dict(snap)
+    slim["comments"] = [
+        {k: v for k, v in c.items() if k in _COMMENT_FIELDS}
+        for c in snap.get("comments", [])
+    ]
+    return slim
+
 
 # ---------------------------------------------------------------------------
 # MCP tools
@@ -80,7 +92,7 @@ async def wait_for_approval(timeout_seconds: int = 86400) -> dict:
                 suggested = _suggest_commit_message(diff_text) if diff_text else None
                 if suggested:
                     snap["suggested_message"] = suggested
-            return snap
+            return _slim_snapshot(snap)
         now = time.time()
         if now - last_keepalive >= keepalive_interval:
             elapsed = int(now - (deadline - timeout_seconds))
@@ -93,7 +105,7 @@ async def wait_for_approval(timeout_seconds: int = 86400) -> dict:
 @mcp.tool()
 def get_comments() -> dict:
     """Return current comments and review status."""
-    return state.snapshot()
+    return _slim_snapshot(state.snapshot())
 
 
 @mcp.tool()
@@ -186,12 +198,15 @@ def list_reviews() -> dict:
 
 
 @mcp.tool()
-def get_review(commit_hash: str) -> dict:
-    """Return the full review record for a specific commit hash."""
+def get_review(commit_hash: str, include_diff: bool = False) -> dict:
+    """Return the review record for a specific commit hash. Set include_diff=True to include the raw diff data."""
     path = _history_dir() / f"{commit_hash}.json"
     if not path.exists():
         return {"error": f"No review found for commit: {commit_hash}"}
-    return json.loads(path.read_text())
+    data = json.loads(path.read_text())
+    if not include_diff:
+        data.pop("raw_diff", None)
+    return data
 
 
 # ---------------------------------------------------------------------------
