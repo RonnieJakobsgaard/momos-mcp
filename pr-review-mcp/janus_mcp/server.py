@@ -84,7 +84,7 @@ async def wait_for_approval(timeout_seconds: int = 86400) -> dict:
         now = time.time()
         if now - last_keepalive >= keepalive_interval:
             elapsed = int(now - (deadline - timeout_seconds))
-            print(f"[wait_for_approval] still waiting... ({elapsed}s elapsed)", flush=True)
+            print(f"[wait_for_approval] still waiting... ({elapsed}s elapsed)", file=sys.stderr, flush=True)
             last_keepalive = now
         await anyio.sleep(2)
     return {"error": f"Timed out after {timeout_seconds}s", "status": "timeout"}
@@ -161,7 +161,7 @@ def _persist_review(commit_hash: str, message: str, snap: dict):
         path = _history_dir() / f"{commit_hash}.json"
         path.write_text(json.dumps(record, indent=2))
     except Exception as e:
-        print(f"WARNING: failed to persist review history: {e}", flush=True)
+        print(f"WARNING: failed to persist review history: {e}", file=sys.stderr, flush=True)
 
 
 @mcp.tool()
@@ -206,7 +206,7 @@ def _resolve_port() -> int:
         return desired
     except OSError:
         fallback = find_free_port()
-        print(f"WARNING: port {desired} already in use, falling back to {fallback}", flush=True)
+        print(f"WARNING: port {desired} already in use, falling back to {fallback}", file=sys.stderr, flush=True)
         return fallback
 
 
@@ -230,8 +230,8 @@ def _start_hot_reload_watcher():
             try:
                 mtime = path.stat().st_mtime
                 if mtime != last_mtime:
-                    print("\n[hot-reload] server.py changed — restarting process.", flush=True)
-                    print("[hot-reload] Run /mcp in Claude Code to reconnect.\n", flush=True)
+                    print("\n[hot-reload] server.py changed — restarting process.", file=sys.stderr, flush=True)
+                    print("[hot-reload] Run /mcp in Claude Code to reconnect.\n", file=sys.stderr, flush=True)
                     time.sleep(0.3)
                     os.execv(sys.executable, [sys.executable] + sys.argv)
             except Exception:

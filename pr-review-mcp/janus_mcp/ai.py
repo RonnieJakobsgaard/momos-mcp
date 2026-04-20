@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 
 try:
     import anthropic as _anthropic
@@ -35,11 +36,11 @@ Diff:
 def _run_ai_pre_review(diff_text: str) -> None:
     """Send the diff to Claude and inject any issues as AI-sourced comments."""
     if not _HAS_ANTHROPIC:
-        print("WARNING: anthropic package not installed, skipping AI pre-review", flush=True)
+        print("WARNING: anthropic package not installed, skipping AI pre-review", file=sys.stderr, flush=True)
         return
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
-        print("WARNING: ANTHROPIC_API_KEY not set, skipping AI pre-review", flush=True)
+        print("WARNING: ANTHROPIC_API_KEY not set, skipping AI pre-review", file=sys.stderr, flush=True)
         return
     try:
         client = _anthropic.Anthropic(api_key=api_key)
@@ -75,9 +76,9 @@ def _run_ai_pre_review(diff_text: str) -> None:
                     injected += 1
             except (json.JSONDecodeError, ValueError, KeyError):
                 pass
-        print(f"AI pre-review: injected {injected} comment(s)", flush=True)
+        print(f"AI pre-review: injected {injected} comment(s)", file=sys.stderr, flush=True)
     except Exception as e:
-        print(f"WARNING: AI pre-review failed: {e}", flush=True)
+        print(f"WARNING: AI pre-review failed: {e}", file=sys.stderr, flush=True)
 
 
 def _suggest_commit_message(diff_text: str) -> str | None:
@@ -108,5 +109,5 @@ def _suggest_commit_message(diff_text: str) -> str | None:
         text = response.content[0].text.strip() if response.content else ""
         return text or None
     except Exception as e:
-        print(f"WARNING: commit message suggestion failed: {e}", flush=True)
+        print(f"WARNING: commit message suggestion failed: {e}", file=sys.stderr, flush=True)
         return None
