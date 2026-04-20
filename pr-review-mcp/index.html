@@ -54,6 +54,11 @@
       <button id="btn-fmt-unified" onclick="setDiffFormat('line-by-line')"
         class="px-3 py-1.5 border-l border-gray-300 transition">Unified</button>
     </div>
+    <div id="unsaved-warning" class="hidden flex items-center gap-2 px-3 py-1.5 rounded-md bg-amber-50 border border-amber-300 text-amber-800 text-xs font-medium">
+      <span>⚠ Unsaved comment</span>
+      <button id="unsaved-proceed" class="underline hover:text-amber-900 whitespace-nowrap">Proceed anyway</button>
+      <button onclick="dismissUnsavedWarning()" class="ml-1 text-amber-500 hover:text-amber-800 font-bold">×</button>
+    </div>
     <button id="btn-changes" onclick="submitStatus('changes_requested')"
       class="px-4 py-1.5 rounded-md border border-red-300 text-red-700 hover:bg-red-50 text-sm font-medium transition">
       Request Changes
@@ -144,6 +149,10 @@ async function init() {
   await loadDiff();
   await refreshComments();
   setInterval(refreshComments, 3000);
+  document.addEventListener("input", e => {
+    if (e.target.tagName === "TEXTAREA" && !hasUnsavedComment())
+      dismissUnsavedWarning();
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -626,7 +635,28 @@ async function postComment(file, line, comment, parentId = null, side = "left") 
 // ---------------------------------------------------------------------------
 // Status buttons
 // ---------------------------------------------------------------------------
-async function submitStatus(status) {
+function hasUnsavedComment() {
+  const textareas = document.querySelectorAll("textarea");
+  return Array.from(textareas).some(t => t.value.trim().length > 0);
+}
+
+function showUnsavedWarning(status) {
+  const warning = document.getElementById("unsaved-warning");
+  const proceed = document.getElementById("unsaved-proceed");
+  proceed.onclick = () => { dismissUnsavedWarning(); submitStatus(status, true); };
+  warning.classList.remove("hidden");
+}
+
+function dismissUnsavedWarning() {
+  document.getElementById("unsaved-warning").classList.add("hidden");
+}
+
+async function submitStatus(status, force = false) {
+  if (!force && hasUnsavedComment()) {
+    showUnsavedWarning(status);
+    return;
+  }
+  dismissUnsavedWarning();
   const btnApprove = document.getElementById("btn-approve");
   const btnChanges = document.getElementById("btn-changes");
   btnApprove.disabled = true;
