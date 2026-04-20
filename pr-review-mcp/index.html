@@ -9,7 +9,8 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
   .d2h-file-wrapper { margin-bottom: 1.5rem; }
-  .diff-scroll-container { overflow-x: auto; overflow-y: clip; }
+  .diff-scroll-container { overflow-x: auto; overflow-y: clip; scrollbar-width: none; -ms-overflow-style: none; }
+  .diff-scroll-container::-webkit-scrollbar { display: none; }
   .diff-scroll-container .d2h-file-side-diff { overflow: visible !important; width: auto !important; }
   .diff-scroll-container .d2h-files-diff { width: max-content; }
   .phantom-scrollbar-wrap { position: sticky; bottom: 0; overflow-x: auto; overflow-y: hidden; height: 14px; z-index: 2; background: #f9fafb; }
@@ -23,8 +24,8 @@
   .d2h-code-linenumber { background-color: #f9fafb !important; }
   #file-tree a:hover { background: #e0e7ff; }
   #file-tree a.active { background: #e0e7ff; font-weight: 600; }
-  .expand-ctx-cell { background: #f3f4f6; padding: 2px 0; border-top: 1px dashed #d1d5db; border-bottom: 1px dashed #d1d5db; text-align: center; }
-  .expand-ctx-btn { font-size: 0.7rem; color: #6366f1; padding: 2px 12px; border-radius: 4px; cursor: pointer; }
+  .expand-ctx-cell { background: #f1f5f9; padding: 1px 0; text-align: center; }
+  .expand-ctx-btn { font-size: 0.68rem; color: #94a3b8; padding: 1px 10px; border-radius: 3px; cursor: pointer; letter-spacing: 0.02em; }
   .expand-ctx-btn:hover { background: #e0e7ff; color: #4338ca; }
   .expand-ctx-line td { background: #f8fafc !important; }
 </style>
@@ -390,7 +391,7 @@ function injectExpandButtons(f, targetEl) {
       const prevEnd = i === 0 ? 0 : (ranges[i - 1] ? ranges[i - 1].end : 0);
       const gapStart = prevEnd + 1;
       const gapEnd = range.start - 1;
-      if (gapEnd >= gapStart) insertPair(gapStart, gapEnd, i);
+      if (gapEnd - gapStart >= 2) insertPair(gapStart, gapEnd, i);
     });
     const lastRange = ranges.filter(Boolean).pop();
     if (lastRange && f.total_lines != null && lastRange.end < f.total_lines)
@@ -406,7 +407,7 @@ function injectExpandButtons(f, targetEl) {
       const prevEnd = i === 0 ? 0 : (ranges[i - 1] ? ranges[i - 1].end : 0);
       const gapStart = prevEnd + 1;
       const gapEnd = range.start - 1;
-      if (gapEnd >= gapStart)
+      if (gapEnd - gapStart >= 2)
         table.insertBefore(makeExpandTbody(f.filename, gapStart, gapEnd, ref, 3, "unified", null), tbodies[i]);
     });
     const lastRange = ranges.filter(Boolean).pop();
