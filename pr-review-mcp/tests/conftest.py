@@ -2,7 +2,9 @@ import copy
 import threading
 import pytest
 
-from janus_mcp.server import state, _resolve_port, run_http_server, _start_hot_reload_watcher
+from janus_mcp.state import state
+from janus_mcp.server import _resolve_port, _start_hot_reload_watcher
+from janus_mcp.http_server import run_http_server
 
 
 @pytest.fixture(scope="session", autouse=True)

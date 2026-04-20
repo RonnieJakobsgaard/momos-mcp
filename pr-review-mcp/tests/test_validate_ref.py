@@ -2,7 +2,7 @@
 import subprocess
 import pytest
 from unittest.mock import patch, MagicMock
-import janus_mcp.server as server
+import janus_mcp._git as server
 
 
 def _mock_run(returncode: int):
@@ -12,19 +12,19 @@ def _mock_run(returncode: int):
 
 
 def test_valid_ref_returns_none():
-    with patch("janus_mcp.server.subprocess.run", return_value=_mock_run(0)):
+    with patch("janus_mcp._git.subprocess.run", return_value=_mock_run(0)):
         assert server._validate_ref("main") is None
 
 
 def test_invalid_ref_returns_error_string():
-    with patch("janus_mcp.server.subprocess.run", return_value=_mock_run(1)):
+    with patch("janus_mcp._git.subprocess.run", return_value=_mock_run(1)):
         result = server._validate_ref("nonexistent-branch")
         assert isinstance(result, str)
         assert "invalid ref" in result
 
 
 def test_error_string_includes_ref_name():
-    with patch("janus_mcp.server.subprocess.run", return_value=_mock_run(1)):
+    with patch("janus_mcp._git.subprocess.run", return_value=_mock_run(1)):
         result = server._validate_ref("bad-ref")
         assert "bad-ref" in result
 
@@ -37,7 +37,7 @@ def test_injection_attempt_passed_as_list_arg():
         captured["cmd"] = cmd
         return _mock_run(1)
 
-    with patch("janus_mcp.server.subprocess.run", side_effect=fake_run):
+    with patch("janus_mcp._git.subprocess.run", side_effect=fake_run):
         server._validate_ref("main; rm -rf /")
 
     assert captured["cmd"] == ["git", "rev-parse", "--verify", "main; rm -rf /"]
@@ -51,7 +51,7 @@ def test_shell_false_by_default():
         captured["kwargs"] = kwargs
         return _mock_run(0)
 
-    with patch("janus_mcp.server.subprocess.run", side_effect=fake_run):
+    with patch("janus_mcp._git.subprocess.run", side_effect=fake_run):
         server._validate_ref("main")
 
     assert not captured["kwargs"].get("shell", False)

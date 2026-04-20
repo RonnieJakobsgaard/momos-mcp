@@ -1,9 +1,0 @@
-{
-  "mcpServers": {
-    "pr-review": {
-      "command": "/path/to/pr-review-mcp/.venv/bin/python",
-      "args": ["/path/to/pr-review-mcp/server.py"],
-      "env": {}
-    }
-  }
-}
