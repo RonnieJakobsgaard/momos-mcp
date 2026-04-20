@@ -921,8 +921,11 @@ function buildCommentHtml(c, isReply = false, replies = []) {
   const typeBadgeHtml = (!isReply && c.comment_type)
     ? `<div style="margin-bottom:4px"><span class="${TYPE_BADGE_CLS[c.comment_type] || TYPE_BADGE_CLS.suggestion}">${c.comment_type}</span></div>`
     : "";
-  const replyBtn = (!c.resolved && reviewStatus === "pending" && !isReply)
+  const replyBtn = (!c.resolved && reviewStatus === "pending" && !isReply && !isAI)
     ? `<button onclick="openReplyForm('${c.id}')" class="text-xs text-indigo-400 hover:text-indigo-600 mt-1">Reply</button>`
+    : "";
+  const dismissBtn = (isAI && !c.resolved && !isReply)
+    ? `<button onclick="dismissAiComment('${c.id}')" class="text-xs text-purple-400 hover:text-purple-700 mt-1">Dismiss</button>`
     : "";
   const indent = isReply ? "ml-6 border-l-2 border-indigo-200 pl-3" : "";
   const aiCls = isAI ? " ai-comment" : "";
@@ -943,7 +946,7 @@ function buildCommentHtml(c, isReply = false, replies = []) {
         ${c.resolved ? `<span class="resolved-badge">✓ Resolved</span>` : `<span class="resolved-badge" style="display:none">✓ Resolved</span>`}
         ${editControls}
       </div>
-      ${replyBtn}
+      ${replyBtn}${dismissBtn}
       <div id="reply-form-${c.id}" class="hidden mt-1">
         <textarea class="w-full text-sm border border-gray-300 rounded p-1 resize-y min-h-[48px]" placeholder="Reply…"></textarea>
         <div class="flex gap-2 mt-1">
@@ -1108,6 +1111,15 @@ async function saveEditComment(id, btn) {
     document.querySelectorAll(".comment-thread-row").forEach(r => r.remove());
     renderCommentThreads();
   }
+}
+
+async function dismissAiComment(id) {
+  await fetch("/resolve", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id }),
+  });
+  await refreshComments();
 }
 
 async function deleteComment(id) {

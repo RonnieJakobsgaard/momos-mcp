@@ -33,7 +33,7 @@ Example (paths filled in by `setup.sh`):
   "mcpServers": {
     "pr-review": {
       "command": "/path/to/pr-review-mcp/.venv/bin/python",
-      "args": ["/path/to/pr-review-mcp/server.py"]
+      "args": ["/path/to/pr-review-mcp/janus_mcp/server.py"]
     }
   }
 }
@@ -82,6 +82,35 @@ After making any significant code changes:
 |------|-------------|
 | `list_reviews()` | Returns summaries of past review sessions, newest first |
 | `get_review(commit_hash)` | Returns the full review record for a specific commit |
+
+## AI pre-review
+
+Pass `ai_pre_review=True` to `create_review()` to have Claude analyze the diff before you open the browser. AI comments appear inline with a purple **🤖 AI** badge and can be dismissed individually.
+
+```python
+# In your CLAUDE.md workflow or tool call:
+create_review(ai_pre_review=True)
+```
+
+**Requirements:**
+- `anthropic` package: `pip install janus-mcp[ai]` (or `pip install anthropic`)
+- `ANTHROPIC_API_KEY` environment variable set
+
+**Model:** `claude-opus-4-7` — looks for bugs, logic errors, security issues, and missing edge-case handling. Skips style/formatting nits.
+
+**Cost estimate:** ~$0.01–0.05 per review depending on diff size (Opus 4.7 pricing with prompt caching).
+
+**Setup:**
+
+```bash
+# Install with AI support
+pip install "janus-mcp[ai]"
+
+# Set API key (add to your shell profile for persistence)
+export ANTHROPIC_API_KEY=sk-ant-...
+```
+
+If `ANTHROPIC_API_KEY` is not set or `anthropic` is not installed, `ai_pre_review=True` is silently skipped — the review opens normally without AI comments.
 
 ## Manual smoke test
 

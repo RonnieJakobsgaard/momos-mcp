@@ -56,6 +56,15 @@ def test_new_round_clears_approved_files(s):
     assert s.snapshot()["approved_files"] == []
 
 
+def test_new_round_clears_ai_comments(s):
+    s.add_comment("a.py", 1, "ai found issue", source="ai")
+    s.add_comment("a.py", 2, "human note")
+    s.new_round()
+    snap = s.snapshot()
+    assert len(snap["comments"]) == 1
+    assert snap["comments"][0]["source"] == "human"
+
+
 def test_new_round_keeps_resolved_comments(s):
     c = s.add_comment("a.py", 1, "fixed")
     s.resolve_comment(c["id"])
