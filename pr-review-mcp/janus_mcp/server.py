@@ -53,7 +53,7 @@ def create_review(base_ref: str = "main", head_ref: str = "HEAD", ai_pre_review:
             capture_output=True, text=True
         )
         file_info["total_lines"] = len(lc.stdout.splitlines()) if lc.returncode == 0 else None
-    state.reset()
+    state.new_round()
     with state.lock:
         state.diff_data = diff_data
 

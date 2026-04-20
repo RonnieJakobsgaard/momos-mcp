@@ -31,6 +31,13 @@ class SharedState:
             self.approved_files = set()
             self._write_comments()
 
+    def new_round(self):
+        """Start a new review round: reset status and approved files, keep comments."""
+        with self.lock:
+            self.status = "pending"
+            self.approved_files = set()
+            self._write_comments()
+
     def add_comment(self, file: str, line: int, comment: str,
                     parent_id: str | None = None, source: str = "human",
                     side: str = "left",
