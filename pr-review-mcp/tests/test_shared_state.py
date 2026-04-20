@@ -35,6 +35,37 @@ def test_reset_clears_approved_files(s):
 
 
 # ---------------------------------------------------------------------------
+# new_round
+# ---------------------------------------------------------------------------
+
+def test_new_round_keeps_comments(s):
+    s.add_comment("a.py", 1, "still broken")
+    s.new_round()
+    assert len(s.snapshot()["comments"]) == 1
+
+
+def test_new_round_resets_status_to_pending(s):
+    s.set_status("approved")
+    s.new_round()
+    assert s.snapshot()["status"] == "pending"
+
+
+def test_new_round_clears_approved_files(s):
+    s.approved_files.add("a.py")
+    s.new_round()
+    assert s.snapshot()["approved_files"] == []
+
+
+def test_new_round_keeps_resolved_comments(s):
+    c = s.add_comment("a.py", 1, "fixed")
+    s.resolve_comment(c["id"])
+    s.new_round()
+    snap = s.snapshot()
+    assert len(snap["comments"]) == 1
+    assert snap["comments"][0]["resolved"] is True
+
+
+# ---------------------------------------------------------------------------
 # add_comment
 # ---------------------------------------------------------------------------
 
