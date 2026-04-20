@@ -4,9 +4,9 @@ import pytest
 from janus_mcp.state import state
 
 
-# Hunk covers lines 20-30 of server.py (tracked file).
+# Hunk covers lines 20-30 of janus_mcp/server.py (tracked file).
 # Lines 1-19 → expand-above button (19 > 3).
-# Lines 31-727 → expand-below button.
+# Lines 31-252 → expand-below button.
 _EXPAND_DIFF = {
     "base_ref": "main",
     "head_ref": "HEAD",
@@ -14,8 +14,8 @@ _EXPAND_DIFF = {
     "_raw": "",
     "files": [
         {
-            "filename": "pr-review-mcp/server.py",
-            "total_lines": 727,
+            "filename": "pr-review-mcp/janus_mcp/server.py",
+            "total_lines": 252,
             "hunks": [
                 {
                     "header": "@@ -20,11 +20,11 @@",
