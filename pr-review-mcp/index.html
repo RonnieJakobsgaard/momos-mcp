@@ -23,6 +23,10 @@
   .d2h-code-linenumber { background-color: #f9fafb !important; }
   #file-tree a:hover { background: #e0e7ff; }
   #file-tree a.active { background: #e0e7ff; font-weight: 600; }
+  .expand-ctx-cell { background: #f3f4f6; padding: 2px 0; border-top: 1px dashed #d1d5db; border-bottom: 1px dashed #d1d5db; text-align: center; }
+  .expand-ctx-btn { font-size: 0.7rem; color: #6366f1; padding: 2px 12px; border-radius: 4px; cursor: pointer; }
+  .expand-ctx-btn:hover { background: #e0e7ff; color: #4338ca; }
+  .expand-ctx-line td { background: #f8fafc !important; }
 </style>
 </head>
 <body class="bg-gray-50 text-gray-900 min-h-screen">
@@ -295,6 +299,7 @@ function renderDiff(files) {
       fileHeader.appendChild(btn);
     }
 
+    injectExpandButtons(f, targetEl);
     attachPhantomScrollbar(scrollContainer);
 
     // Tag each code td with file/line data for click-to-comment.
@@ -340,6 +345,213 @@ function renderDiff(files) {
       });
     }
   });
+}
+
+// ---------------------------------------------------------------------------
+// Expand context
+// ---------------------------------------------------------------------------
+
+function hunkNewRange(hunk) {
+  const newLines = hunk.lines.filter(l => l.new_line !== null).map(l => l.new_line);
+  if (!newLines.length) return null;
+  return { start: newLines[0], end: newLines[newLines.length - 1] };
+}
+
+function injectExpandButtons(f, targetEl) {
+  const ranges = f.hunks.map(hunkNewRange);
+  if (!ranges.length) return;
+  const ref = (diffData && diffData.head_ref) || "HEAD";
+  const isSide = diffFormat === "side-by-side";
+
+  if (isSide) {
+    const sideDivs = Array.from(targetEl.querySelectorAll(".d2h-file-side-diff"));
+    if (sideDivs.length < 2) return;
+    const tables = sideDivs.map(d => d.querySelector("table.d2h-diff-table")).filter(Boolean);
+    if (tables.length < 2) return;
+    const allTbodies = tables.map(t => Array.from(t.querySelectorAll("tbody")));
+
+    const insertPair = (gapStart, gapEnd, beforeIdx) => {
+      const pid = "ep-" + Math.random().toString(36).slice(2);
+      const e0 = makeExpandTbody(f.filename, gapStart, gapEnd, ref, 2, "side", pid + "L");
+      const e1 = makeExpandTbody(f.filename, gapStart, gapEnd, ref, 2, "side", pid + "R");
+      e0.dataset.pairedId = pid + "R";
+      e1.dataset.pairedId = pid + "L";
+      if (beforeIdx != null) {
+        tables[0].insertBefore(e0, allTbodies[0][beforeIdx]);
+        tables[1].insertBefore(e1, allTbodies[1][beforeIdx]);
+      } else {
+        tables[0].appendChild(e0);
+        tables[1].appendChild(e1);
+      }
+    };
+
+    ranges.forEach((range, i) => {
+      if (!range) return;
+      const prevEnd = i === 0 ? 0 : (ranges[i - 1] ? ranges[i - 1].end : 0);
+      const gapStart = prevEnd + 1;
+      const gapEnd = range.start - 1;
+      if (gapEnd >= gapStart) insertPair(gapStart, gapEnd, i);
+    });
+    const lastRange = ranges.filter(Boolean).pop();
+    if (lastRange) insertPair(lastRange.end + 1, Infinity, null);
+
+  } else {
+    const table = targetEl.querySelector("table.d2h-diff-table");
+    if (!table) return;
+    const tbodies = Array.from(table.querySelectorAll("tbody"));
+
+    ranges.forEach((range, i) => {
+      if (!range) return;
+      const prevEnd = i === 0 ? 0 : (ranges[i - 1] ? ranges[i - 1].end : 0);
+      const gapStart = prevEnd + 1;
+      const gapEnd = range.start - 1;
+      if (gapEnd >= gapStart)
+        table.insertBefore(makeExpandTbody(f.filename, gapStart, gapEnd, ref, 3, "unified", null), tbodies[i]);
+    });
+    const lastRange = ranges.filter(Boolean).pop();
+    if (lastRange)
+      table.appendChild(makeExpandTbody(f.filename, lastRange.end + 1, Infinity, ref, 3, "unified", null));
+  }
+}
+
+function makeExpandTbody(file, gapStart, gapEnd, ref, cols, mode, selfId) {
+  const tbody = document.createElement("tbody");
+  tbody.className = "expand-ctx-tbody";
+  if (selfId) tbody.id = selfId;
+  tbody.dataset.file = file;
+  tbody.dataset.gapStart = gapStart;
+  tbody.dataset.gapEnd = String(gapEnd);
+  tbody.dataset.ref = ref;
+  tbody.dataset.cols = cols;
+  tbody.dataset.mode = mode;
+  const tr = document.createElement("tr");
+  tr.className = "expand-ctx-row";
+  const td = document.createElement("td");
+  td.colSpan = cols;
+  td.className = "expand-ctx-cell";
+  const btn = document.createElement("button");
+  btn.className = "expand-ctx-btn";
+  btn.onclick = () => expandContext(tbody);
+  setExpandBtnText(btn, gapStart, gapEnd);
+  td.appendChild(btn);
+  tr.appendChild(td);
+  tbody.appendChild(tr);
+  return tbody;
+}
+
+function setExpandBtnText(btn, start, end) {
+  const endNum = (end === Infinity || String(end) === "Infinity") ? null : Number(end);
+  if (endNum === null || endNum < start) {
+    btn.textContent = "↓ Load more lines";
+  } else {
+    const n = endNum - Number(start) + 1;
+    btn.textContent = `↕ ${n} hidden line${n !== 1 ? "s" : ""}`;
+  }
+}
+
+async function expandContext(tbody) {
+  const file = tbody.dataset.file;
+  const gapStart = parseInt(tbody.dataset.gapStart);
+  const gapEnd = tbody.dataset.gapEnd === "Infinity" ? null : parseInt(tbody.dataset.gapEnd);
+  const ref = tbody.dataset.ref;
+  const cols = parseInt(tbody.dataset.cols);
+  const mode = tbody.dataset.mode;
+  const pairedId = tbody.dataset.pairedId;
+
+  const fetchEnd = gapEnd !== null ? Math.min(gapStart + 14, gapEnd) : gapStart + 14;
+
+  let data;
+  try {
+    const res = await fetch(
+      `/file-lines?file=${encodeURIComponent(file)}&start=${gapStart}&end=${fetchEnd}&ref=${encodeURIComponent(ref)}`
+    );
+    data = await res.json();
+  } catch (_) { return; }
+
+  if (data.error || !data.lines || !data.lines.length) {
+    if (pairedId) document.getElementById(pairedId)?.remove();
+    tbody.remove();
+    return;
+  }
+
+  const total = data.total_lines;
+  const newStart = data.lines[data.lines.length - 1].line_no + 1;
+  const newEnd = gapEnd !== null ? gapEnd : total;
+
+  const insertLines = (target) => {
+    data.lines.forEach(line => {
+      target.parentElement.insertBefore(makeContextRow(line.line_no, line.content, cols, mode), target);
+    });
+  };
+
+  insertLines(tbody);
+
+  if (pairedId) {
+    const paired = document.getElementById(pairedId);
+    if (paired) {
+      insertLines(paired);
+      updateOrRemoveExpandTbody(paired, newStart, newEnd);
+    }
+  }
+
+  updateOrRemoveExpandTbody(tbody, newStart, newEnd);
+}
+
+function updateOrRemoveExpandTbody(tbody, newStart, newEnd) {
+  if (newStart > newEnd) {
+    tbody.remove();
+  } else {
+    tbody.dataset.gapStart = newStart;
+    tbody.dataset.gapEnd = newEnd;
+    const btn = tbody.querySelector(".expand-ctx-btn");
+    if (btn) setExpandBtnText(btn, newStart, newEnd);
+  }
+}
+
+function makeContextRow(lineNo, content, cols, mode) {
+  const tr = document.createElement("tr");
+  tr.className = "expand-ctx-line";
+
+  if (mode === "side") {
+    const tdN = document.createElement("td");
+    tdN.className = "d2h-code-side-linenumber";
+    tdN.style.cssText = "color:#9ca3af;font-size:0.75rem;text-align:right;padding:0 8px;user-select:none;min-width:3em;";
+    tdN.textContent = lineNo;
+    const tdC = document.createElement("td");
+    tdC.className = "d2h-code-side-diff";
+    const pre = document.createElement("pre");
+    pre.className = "d2h-code-line";
+    const span = document.createElement("span");
+    span.className = "d2h-code-line-ctn";
+    span.textContent = content || "\u00a0";
+    pre.appendChild(span);
+    tdC.appendChild(pre);
+    tr.appendChild(tdN);
+    tr.appendChild(tdC);
+  } else {
+    ["num1", "num2"].forEach(cls => {
+      const tdN = document.createElement("td");
+      tdN.className = "d2h-code-linenumber";
+      tdN.style.cssText = "color:#9ca3af;font-size:0.75rem;padding:0 4px;";
+      const div = document.createElement("div");
+      div.className = `line-${cls}`;
+      div.textContent = lineNo;
+      tdN.appendChild(div);
+      tr.appendChild(tdN);
+    });
+    const tdC = document.createElement("td");
+    tdC.className = "d2h-code-side-diff";
+    const pre = document.createElement("pre");
+    pre.className = "d2h-code-line";
+    const span = document.createElement("span");
+    span.className = "d2h-code-line-ctn";
+    span.textContent = content || "\u00a0";
+    pre.appendChild(span);
+    tdC.appendChild(pre);
+    tr.appendChild(tdC);
+  }
+
+  return tr;
 }
 
 // ---------------------------------------------------------------------------

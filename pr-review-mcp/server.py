@@ -10,6 +10,7 @@ import time
 import uuid
 import webbrowser
 from pathlib import Path
+from urllib.parse import urlparse, parse_qs
 
 import anyio
 
@@ -185,6 +186,35 @@ class ReviewHandler(http.server.BaseHTTPRequestHandler):
                 self._send_json(state.diff_data)
         elif self.path == "/comments":
             self._send_json(state.snapshot())
+        elif self.path.startswith("/file-lines"):
+            params = parse_qs(urlparse(self.path).query)
+            filepath = params.get("file", [""])[0].strip()
+            start = max(1, int(params.get("start", ["1"])[0]))
+            end_param = params.get("end", [None])[0]
+            end = int(end_param) if end_param else None
+            ref = params.get("ref", ["HEAD"])[0].strip()
+            if not filepath:
+                self._send_json({"error": "file required"}, 400)
+                return
+            err = _validate_ref(ref)
+            if err:
+                self._send_json({"error": err}, 400)
+                return
+            result = subprocess.run(
+                ["git", "show", f"{ref}:{filepath}"],
+                capture_output=True, text=True
+            )
+            if result.returncode != 0:
+                self._send_json({"error": f"could not read {filepath} at {ref}"}, 404)
+                return
+            all_lines = result.stdout.splitlines()
+            total = len(all_lines)
+            actual_end = min(end if end is not None else total, total)
+            selected = [
+                {"line_no": i + 1, "content": all_lines[i]}
+                for i in range(start - 1, actual_end)
+            ]
+            self._send_json({"lines": selected, "total_lines": total})
         else:
             self._send_json({"error": "not found"}, 404)
 
