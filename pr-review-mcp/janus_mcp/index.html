@@ -68,6 +68,8 @@
       <button id="unsaved-proceed" class="underline hover:text-amber-900 whitespace-nowrap">Proceed anyway</button>
       <button onclick="dismissUnsavedWarning()" class="ml-1 text-amber-500 hover:text-amber-800 font-bold">×</button>
     </div>
+    <button onclick="toggleShortcutLegend()" title="Keyboard shortcuts (?)"
+      class="px-2 py-1.5 rounded-md border border-gray-300 text-gray-500 hover:bg-gray-50 text-xs font-medium transition">?</button>
     <button id="btn-changes" onclick="submitStatus('changes_requested')"
       class="px-4 py-1.5 rounded-md border border-red-300 text-red-700 hover:bg-red-50 text-sm font-medium transition">
       Request Changes
@@ -1156,6 +1158,102 @@ function attachPhantomScrollbar(scrollContainer) {
 
   const ro = new ResizeObserver(updateWidth);
   ro.observe(scrollContainer);
+}
+
+// ---------------------------------------------------------------------------
+// Keyboard shortcuts
+// ---------------------------------------------------------------------------
+let _activeFileIdx = 0;
+let _activeCommentIdx = -1;
+
+function _isTyping() {
+  const el = document.activeElement;
+  return el && (el.tagName === "TEXTAREA" || el.tagName === "INPUT" || el.isContentEditable);
+}
+
+function _commentRows() {
+  return Array.from(document.querySelectorAll(".comment-thread-row"))
+    .filter(r => r.offsetParent !== null);
+}
+
+function _fileLinks() {
+  return Array.from(document.querySelectorAll("#file-list a[data-file-idx]"));
+}
+
+function _scrollToRow(row) {
+  row.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+function kbNextComment() {
+  const rows = _commentRows();
+  if (!rows.length) return;
+  _activeCommentIdx = Math.min(_activeCommentIdx + 1, rows.length - 1);
+  _scrollToRow(rows[_activeCommentIdx]);
+}
+
+function kbPrevComment() {
+  const rows = _commentRows();
+  if (!rows.length) return;
+  _activeCommentIdx = Math.max(_activeCommentIdx - 1, 0);
+  _scrollToRow(rows[_activeCommentIdx]);
+}
+
+function kbNextFile() {
+  const links = _fileLinks();
+  if (!links.length) return;
+  _activeFileIdx = Math.min(_activeFileIdx + 1, links.length - 1);
+  links[_activeFileIdx].click();
+  document.getElementById(`file-${links[_activeFileIdx].dataset.fileIdx}`)
+    ?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function kbPrevFile() {
+  const links = _fileLinks();
+  if (!links.length) return;
+  _activeFileIdx = Math.max(_activeFileIdx - 1, 0);
+  links[_activeFileIdx].click();
+  document.getElementById(`file-${links[_activeFileIdx].dataset.fileIdx}`)
+    ?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+document.addEventListener("keydown", e => {
+  // Always allow Esc to close comment form
+  if (e.key === "Escape") {
+    if (activeFormRow) { activeFormRow.remove(); activeFormRow = null; }
+    return;
+  }
+  if (_isTyping()) return;
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+  switch (e.key) {
+    case "n": e.preventDefault(); kbNextComment(); break;
+    case "p": e.preventDefault(); kbPrevComment(); break;
+    case "j": e.preventDefault(); kbNextFile();    break;
+    case "k": e.preventDefault(); kbPrevFile();    break;
+    case "a": e.preventDefault(); submitStatus("approved");          break;
+    case "r": e.preventDefault(); submitStatus("changes_requested"); break;
+    case "?": e.preventDefault(); toggleShortcutLegend(); break;
+  }
+});
+
+function toggleShortcutLegend() {
+  const el = document.getElementById("shortcut-legend");
+  if (el) el.remove();
+  else {
+    const div = document.createElement("div");
+    div.id = "shortcut-legend";
+    div.style.cssText = "position:fixed;bottom:1rem;right:1rem;background:#1e293b;color:#e2e8f0;border-radius:8px;padding:12px 16px;font-size:0.75rem;z-index:9999;line-height:1.8;box-shadow:0 4px 12px rgba(0,0,0,.3)";
+    div.innerHTML = `<div style="font-weight:700;margin-bottom:6px;color:#94a3b8;letter-spacing:.05em">SHORTCUTS</div>
+      <div><kbd style="background:#334155;padding:1px 5px;border-radius:3px">n</kbd> / <kbd style="background:#334155;padding:1px 5px;border-radius:3px">p</kbd> &nbsp;next / prev comment</div>
+      <div><kbd style="background:#334155;padding:1px 5px;border-radius:3px">j</kbd> / <kbd style="background:#334155;padding:1px 5px;border-radius:3px">k</kbd> &nbsp;next / prev file</div>
+      <div><kbd style="background:#334155;padding:1px 5px;border-radius:3px">a</kbd> &nbsp;approve</div>
+      <div><kbd style="background:#334155;padding:1px 5px;border-radius:3px">r</kbd> &nbsp;request changes</div>
+      <div><kbd style="background:#334155;padding:1px 5px;border-radius:3px">Esc</kbd> &nbsp;close comment form</div>
+      <div><kbd style="background:#334155;padding:1px 5px;border-radius:3px">?</kbd> &nbsp;toggle this panel</div>
+      <div style="margin-top:6px;color:#64748b;font-size:0.68rem">Click anywhere to close</div>`;
+    div.onclick = () => div.remove();
+    document.body.appendChild(div);
+  }
 }
 
 // ---------------------------------------------------------------------------
