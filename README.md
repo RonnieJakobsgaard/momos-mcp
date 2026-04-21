@@ -1,4 +1,4 @@
-# git-pr-mcp-server
+# momos-mcp
 
 A local MCP server that brings an interactive, browser-based PR review loop to Claude Code.
 
