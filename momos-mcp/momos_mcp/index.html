@@ -38,6 +38,14 @@
   .type-badge-suggestion { background:#e0e7ff; color:#3730a3; border:1px solid #6366f1; }
   .type-badge-blocker    { background:#fee2e2; color:#991b1b; border:1px solid #ef4444; }
 
+  /* ── Dark mode transition ── */
+  html { transition: background-color 0.25s ease, color 0.25s ease; }
+  body, header, aside, main, .d2h-file-wrapper, .d2h-file-header,
+  .d2h-diff-table, .inline-comment-box, .comment-thread,
+  #overview-panel, #overview-panel .bg-white {
+    transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+  }
+
   /* ── Dark mode ── */
   .dark body { background:#0f1117; color:#e2e8f0; }
   /* Header */
