@@ -22,7 +22,7 @@
   .comment-thread.ai-comment { background: #faf5ff; border-color: #e9d5ff; border-left-color: #a855f7; }
   td[data-file] { cursor: pointer; }
   td[data-file]:hover { background: rgba(99,102,241,0.08) !important; }
-  .d2h-code-linenumber { background-color: #f9fafb !important; }
+  .d2h-code-linenumber { background-color: #f9fafb; }
   #file-tree a:hover { background: #f1f5f9; }
   #file-tree a.active { background: #e2e8f0; font-weight: 600; color: #1e293b; }
   .expand-ctx-cell { background: #f1f5f9; padding: 1px 0; text-align: center; }
@@ -74,9 +74,9 @@
   .dark #title-text { color:#c7d2fe; }
   /* File tree */
   .dark aside#file-tree { background:#13151f; border-color:#2d3148; }
-  .dark #file-tree a { color:#94a3b8; }
-  .dark #file-tree a:hover { background:#1e2535; }
-  .dark #file-tree a.active { background:#263347; color:#e2e8f0; font-weight:600; }
+  .dark #file-tree a { color:#94a3b8 !important; }
+  .dark #file-tree a:hover { background:#1e2535 !important; }
+  .dark #file-tree a.active { background:#263347 !important; color:#e2e8f0 !important; font-weight:600; }
   .dark #file-tree .text-gray-500 { color:#64748b; }
   /* Diff area */
   .dark #diff-area { background:#0f1117; }
@@ -116,6 +116,9 @@
   .dark .resolved-badge { background:#052e16; color:#4ade80; }
   .dark .comment-type-selector [data-type] { background:#1a1d27; border-color:#3d4060; color:#64748b; }
   .dark .comment-type-selector [data-type]:hover { border-color:#6366f1; color:#94a3b8; }
+  .dark .comment-type-selector[data-selected="nitpick"]    [data-type="nitpick"]    { background:#374151 !important; color:#fff !important; border-color:#374151 !important; font-weight:600; }
+  .dark .comment-type-selector[data-selected="suggestion"] [data-type="suggestion"] { background:#4f46e5 !important; color:#fff !important; border-color:#4f46e5 !important; font-weight:600; }
+  .dark .comment-type-selector[data-selected="blocker"]    [data-type="blocker"]    { background:#dc2626 !important; color:#fff !important; border-color:#dc2626 !important; font-weight:600; }
   .dark .type-badge-nitpick    { background:#1f2937; color:#9ca3af; border-color:#374151; }
   .dark .type-badge-suggestion { background:#1e1b4b; color:#a5b4fc; border-color:#4338ca; }
   .dark .type-badge-blocker    { background:#450a0a; color:#fca5a5; border-color:#991b1b; }
