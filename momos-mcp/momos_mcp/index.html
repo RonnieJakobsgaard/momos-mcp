@@ -143,11 +143,13 @@
   .dark [class*="comment-text-"] button.bg-indigo-600 { background:#4338ca; }
   .dark [class*="comment-text-"] button.border { border-color:#3d4060; color:#94a3b8; background:#1a1d27; }
   /* Approve file btn */
-  /* approve-file-btn: no browser default white — must be explicit always */
-  .approve-file-btn { background:transparent; }
-  .dark .approve-file-btn { border-color:#166534; color:#4ade80; background:#1a1d27; }
-  .dark .approve-file-btn:hover:not(:disabled) { background:#052e16; }
-  .dark .approve-file-btn:disabled { background:#1a1d27; }
+  /* approve-file-btn: fully explicit — no browser defaults bleed through */
+  .approve-file-btn { background:#fff; border-color:#16a34a; color:#16a34a; }
+  .approve-file-btn:hover:not([data-approved]) { background:#f0fdf4; }
+  .approve-file-btn[data-approved] { background:#16a34a !important; color:#fff !important; border-color:#16a34a !important; opacity:1 !important; cursor:default; }
+  .dark .approve-file-btn { background:#1a1d27; border-color:#166534; color:#4ade80; }
+  .dark .approve-file-btn:hover:not([data-approved]) { background:#052e16; }
+  .dark .approve-file-btn[data-approved] { background:#166534 !important; color:#4ade80 !important; border-color:#166534 !important; opacity:1 !important; cursor:default; }
   /* Status badges */
   .dark .bg-yellow-100 { background:#422006 !important; }
   .dark .text-yellow-800 { color:#fde68a !important; }
@@ -544,7 +546,7 @@ function renderDiff(files) {
       const btn = document.createElement("button");
       btn.id = `approve-file-${fileIdx}`;
       btn.dataset.filename = f.filename;
-      btn.className = "approve-file-btn ml-3 px-2 py-0.5 text-xs rounded border border-green-400 text-green-700 hover:bg-green-50 transition disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap";
+      btn.className = "approve-file-btn ml-3 px-2 py-0.5 text-xs rounded border transition whitespace-nowrap";
       btn.textContent = "Approve file";
       btn.onclick = () => approveFile(f.filename, btn);
       fileHeader.appendChild(btn);
@@ -1198,8 +1200,7 @@ async function approveFile(filename, btn) {
   if (data.error) { alert(data.error); return; }
   btn.textContent = "✓ Approved";
   btn.disabled = true;
-  btn.classList.replace("border-green-400", "border-green-200");
-  btn.classList.replace("text-green-700", "text-green-400");
+  btn.dataset.approved = "true";
   if (data.status === "approved") {
     reviewStatus = "approved";
     updateStatusBadge("approved");
