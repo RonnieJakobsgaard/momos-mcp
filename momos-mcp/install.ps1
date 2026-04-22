@@ -82,7 +82,7 @@ if (-not ($settings.mcpServers.PSObject.Properties.Name -contains 'momos')) {
     $settings | ConvertTo-Json -Depth 10 | Set-Content $settingsPath -Encoding UTF8
     Write-Host "Registered 'momos' MCP server in $settingsPath"
 } else {
-    Write-Host "'momos' MCP server already registered in $settingsPath — skipping."
+    Write-Host "'momos' MCP server already registered in $settingsPath - skipping."
 }
 
 Write-Host ""
