@@ -50,38 +50,30 @@ if (-not (Test-Path $pip)) {
 
 Write-Host "Installing momos-mcp..."
 & $pip install --quiet -e $ScriptDir
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "pip install failed (exit $LASTEXITCODE)."
+    exit 1
+}
 
 $entry = Join-Path $venvDir 'Scripts\momos-mcp.exe'
 if (-not (Test-Path $entry)) {
     $entry = Join-Path $venvDir 'bin/momos-mcp'
 }
 
-# --- Patch ~/.claude/settings.json ---
-$settingsPath = Join-Path (Join-Path $HOME '.claude') 'settings.json'
-
-$mcpEntry = @{
-    command = $entry
-}
-
-if (Test-Path $settingsPath) {
-    $settings = Get-Content $settingsPath -Raw | ConvertFrom-Json
-} else {
-    $settings = [PSCustomObject]@{}
-}
-
-# Ensure mcpServers key exists
-if (-not ($settings.PSObject.Properties.Name -contains 'mcpServers')) {
-    $settings | Add-Member -MemberType NoteProperty -Name 'mcpServers' -Value ([PSCustomObject]@{})
-}
-
-# Idempotent: only add if not already present
-if (-not ($settings.mcpServers.PSObject.Properties.Name -contains 'momos')) {
-    $settings.mcpServers | Add-Member -MemberType NoteProperty -Name 'momos' -Value $mcpEntry
-    $settings | ConvertTo-Json -Depth 10 | Set-Content $settingsPath -Encoding UTF8
-    Write-Host "Registered 'momos' MCP server in $settingsPath"
-} else {
-    Write-Host "'momos' MCP server already registered in $settingsPath - skipping."
-}
+# Escape backslashes for JSON
+$entryJson = $entry -replace '\\', '\\'
 
 Write-Host ""
-Write-Host "Setup complete! Restart Claude Code to load the MCP server."
+Write-Host "Installation complete!"
+Write-Host ""
+Write-Host "To register the MCP server, run this in Claude Code:"
+Write-Host ""
+Write-Host "  claude mcp add -s user momos `"$entry`""
+Write-Host ""
+Write-Host "Or manually add the following to the 'mcpServers' section of"
+Write-Host "~/.claude/settings.json:"
+Write-Host ""
+Write-Host "  `"momos`": {"
+Write-Host "    `"command`": `"$entryJson`""
+Write-Host "  }"
+Write-Host ""
