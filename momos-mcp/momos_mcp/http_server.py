@@ -70,7 +70,8 @@ class ReviewHandler(http.server.BaseHTTPRequestHandler):
                 return
             result = subprocess.run(
                 ["git", "show", f"{ref}:{filepath}"],
-                capture_output=True, text=True
+                capture_output=True, text=True,
+                cwd=state.git_cwd or None,
             )
             if result.returncode != 0:
                 self._send_json({"error": f"could not read {filepath} at {ref}"}, 404)

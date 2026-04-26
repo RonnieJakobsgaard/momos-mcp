@@ -49,6 +49,8 @@ if (-not (Test-Path $pip)) {
 }
 
 Write-Host "Installing momos-mcp..."
+# Kill any running instance so pip can overwrite the .exe
+Get-Process -Name 'momos-mcp' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 & $pip install --quiet -e $ScriptDir
 if ($LASTEXITCODE -ne 0) {
     Write-Error "pip install failed (exit $LASTEXITCODE)."

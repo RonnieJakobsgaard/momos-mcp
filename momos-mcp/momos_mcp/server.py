@@ -22,6 +22,27 @@ mcp = FastMCP("momos")
 _COMMENT_FIELDS = {"id", "file", "line", "comment", "resolved"}
 
 
+@mcp.tool()
+def debug_info() -> dict:
+    """Return diagnostic info: working directory, git availability, and exe path."""
+    import shutil
+    cwd = os.getcwd()
+    exe = sys.executable
+    git_path = shutil.which("git")
+    git_check = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        capture_output=True, text=True
+    )
+    return {
+        "cwd": cwd,
+        "exe": exe,
+        "git_path": git_path,
+        "git_repo": git_check.stdout.strip() if git_check.returncode == 0 else None,
+        "git_error": git_check.stderr.strip() if git_check.returncode != 0 else None,
+        "port": state.port,
+    }
+
+
 def _slim_snapshot(snap: dict) -> dict:
     """Strip internal-only comment fields before returning to Claude."""
     slim = dict(snap)
@@ -37,15 +58,21 @@ def _slim_snapshot(snap: dict) -> dict:
 # ---------------------------------------------------------------------------
 
 @mcp.tool()
-def create_review(base_ref: str = "main", head_ref: str = "HEAD", ai_pre_review: bool = False, title: str = "") -> dict:
-    """Run git diff, parse it, serve the review UI, and open the browser."""
+def create_review(base_ref: str = "main", head_ref: str = "HEAD", ai_pre_review: bool = False, title: str = "", cwd: str = "") -> dict:
+    """Run git diff, parse it, serve the review UI, and open the browser.
+
+    cwd: path to the git repo root (required when the MCP server's working
+         directory differs from the project being reviewed).
+    """
+    git_cwd = cwd.strip() or None
+
     for ref in (base_ref, head_ref):
-        if err := _validate_ref(ref):
-            return {"error": err}
+        if err := _validate_ref(ref, cwd=git_cwd):
+            return {"error": err, "hint": "Pass cwd=<path-to-git-repo> if the MCP server is not running inside the repo."}
 
     result = subprocess.run(
         ["git", "diff", base_ref, head_ref],
-        capture_output=True, text=True
+        capture_output=True, text=True, cwd=git_cwd,
     )
     if result.returncode != 0:
         return {"error": result.stderr.strip() or "git diff failed"}
@@ -62,12 +89,13 @@ def create_review(base_ref: str = "main", head_ref: str = "HEAD", ai_pre_review:
     for file_info in diff_data.get("files", []):
         lc = subprocess.run(
             ["git", "show", f"{head_ref}:{file_info['filename']}"],
-            capture_output=True, text=True
+            capture_output=True, text=True, cwd=git_cwd,
         )
         file_info["total_lines"] = len(lc.stdout.splitlines()) if lc.returncode == 0 else None
     state.new_round()
     with state.lock:
         state.diff_data = diff_data
+        state.git_cwd = git_cwd or ""
 
     if ai_pre_review:
         threading.Thread(target=_run_ai_pre_review, args=(raw,), daemon=True).start()

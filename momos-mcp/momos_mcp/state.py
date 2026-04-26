@@ -13,6 +13,7 @@ class SharedState:
         self.diff_data: dict = {}
         self.approved_files: set[str] = set()
         self.port: int = 0
+        self.git_cwd: str = ""
         self.temp_dir: str = tempfile.mkdtemp(prefix="momos-")
 
     @property
